@@ -1,0 +1,83 @@
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - cyclop
+    - decorder
+    - dogsled
+    - dupl
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - copyloopvar
+    - forbidigo
+    - funlen
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - stylecheck
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+    - wsl
+
+linters-settings:
+  funlen:
+    lines: 120
+    statements: 40
+  gocognit:
+    min-complexity: 10
+  nestif:
+    min-complexity: 4
+  gocyclo:
+    min-complexity: 10
+
+issues:
+  exclude-rules:
+    - path: _test.go
+      linters:
+        - funlen
+        - dupl
+    - path: scripts
+      linters:
+        - forbidigo
+        - gocritic
+        - revive
+        - wsl
