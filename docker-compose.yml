@@ -5,22 +5,36 @@ services:
       - ./data/redis:/data
     restart: always
 
-  proxy:
+  # proxy:
+  #   depends_on:
+  #     - redis
+  #   build: ./proxy
+  #   volumes:
+  #     - ./proxy:/app
+  #     - /app/node_modules
+  #   environment:
+  #     APP_PORT: ${APP_PORT}
+  #     LOG_LEVEL: ${LOG_LEVEL}
+  #     REQUIRE_AUTH: ${REQUIRE_AUTH}
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_DB: 0
+  #   ports:
+  #     - "${APP_PORT}:${APP_PORT}"
+  #   expose:
+  #     - "${APP_PORT}/tcp"
+  #   restart: always
+
+  go_proxy:
     depends_on:
       - redis
-    build: ./proxy
-    volumes:
-      - ./proxy:/app
-      - /app/node_modules
+    build: ./go-proxy
     environment:
-      APP_PORT: ${APP_PORT}
-      LOG_LEVEL: ${LOG_LEVEL}
-      REQUIRE_AUTH: ${REQUIRE_AUTH}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
     ports:
-      - "${APP_PORT}:${APP_PORT}"
+      - "${APP_PORT}:8000"
     expose:
       - "${APP_PORT}/tcp"
     restart: always
