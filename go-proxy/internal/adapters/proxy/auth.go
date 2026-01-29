@@ -1,3 +1,5 @@
+//go:generate minimock -i .passwordHashGetter,.passwordComparator,.authValidator,.cache
+
 package proxy
 
 import (
@@ -11,6 +13,10 @@ type passwordHashGetter interface {
 
 type passwordComparator interface {
 	Valid(input, toCompare string) (bool, error)
+}
+
+type authValidator interface {
+	Valid(user, password, userAddr string) bool
 }
 
 type Auth struct {
@@ -46,4 +52,41 @@ func (a *Auth) Valid(user, password, _ string) bool {
 	}
 
 	return valid
+}
+
+type cacheKey struct {
+	user     string
+	password string
+}
+
+type cache interface {
+	Add(key cacheKey, value bool)
+	Get(key cacheKey) (value, exists bool)
+}
+
+type AuthWithCache struct {
+	cache cache
+	authValidator
+}
+
+func NewAuthWithCache(cache cache, authValidator authValidator) *AuthWithCache {
+	return &AuthWithCache{
+		cache:         cache,
+		authValidator: authValidator,
+	}
+}
+
+func (a *AuthWithCache) Valid(user, password, _ string) bool {
+	entryCacheKey := cacheKey{user, password}
+
+	cachedValue, ok := a.cache.Get(entryCacheKey)
+	if ok {
+		return cachedValue
+	}
+
+	calculatedValue := a.authValidator.Valid(user, password, "")
+
+	a.cache.Add(entryCacheKey, calculatedValue)
+
+	return calculatedValue
 }

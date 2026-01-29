@@ -14,6 +14,7 @@ What's needed to be implemented:
 - [ ] Telegram bot CLI commands for creating and deleting admin user
 
 Additional features:
+- [ ] In-memory cache for user authentication
 - [ ] Prometheus metrics export
 - [ ] Publishing proxy app as a separate image to Docker Hub
 - [ ] Add different levels tests
