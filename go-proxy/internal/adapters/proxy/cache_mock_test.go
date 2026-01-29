@@ -17,16 +17,16 @@ type CacheMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcAdd          func(key cacheKey, value bool)
+	funcAdd          func(key AuthCacheKey, value bool)
 	funcAddOrigin    string
-	inspectFuncAdd   func(key cacheKey, value bool)
+	inspectFuncAdd   func(key AuthCacheKey, value bool)
 	afterAddCounter  uint64
 	beforeAddCounter uint64
 	AddMock          mCacheMockAdd
 
-	funcGet          func(key cacheKey) (value bool, exists bool)
+	funcGet          func(key AuthCacheKey) (value bool, exists bool)
 	funcGetOrigin    string
-	inspectFuncGet   func(key cacheKey)
+	inspectFuncGet   func(key AuthCacheKey)
 	afterGetCounter  uint64
 	beforeGetCounter uint64
 	GetMock          mCacheMockGet
@@ -77,13 +77,13 @@ type CacheMockAddExpectation struct {
 
 // CacheMockAddParams contains parameters of the cache.Add
 type CacheMockAddParams struct {
-	key   cacheKey
+	key   AuthCacheKey
 	value bool
 }
 
 // CacheMockAddParamPtrs contains pointers to parameters of the cache.Add
 type CacheMockAddParamPtrs struct {
-	key   *cacheKey
+	key   *AuthCacheKey
 	value *bool
 }
 
@@ -105,7 +105,7 @@ func (mmAdd *mCacheMockAdd) Optional() *mCacheMockAdd {
 }
 
 // Expect sets up expected params for cache.Add
-func (mmAdd *mCacheMockAdd) Expect(key cacheKey, value bool) *mCacheMockAdd {
+func (mmAdd *mCacheMockAdd) Expect(key AuthCacheKey, value bool) *mCacheMockAdd {
 	if mmAdd.mock.funcAdd != nil {
 		mmAdd.mock.t.Fatalf("CacheMock.Add mock is already set by Set")
 	}
@@ -130,7 +130,7 @@ func (mmAdd *mCacheMockAdd) Expect(key cacheKey, value bool) *mCacheMockAdd {
 }
 
 // ExpectKeyParam1 sets up expected param key for cache.Add
-func (mmAdd *mCacheMockAdd) ExpectKeyParam1(key cacheKey) *mCacheMockAdd {
+func (mmAdd *mCacheMockAdd) ExpectKeyParam1(key AuthCacheKey) *mCacheMockAdd {
 	if mmAdd.mock.funcAdd != nil {
 		mmAdd.mock.t.Fatalf("CacheMock.Add mock is already set by Set")
 	}
@@ -176,7 +176,7 @@ func (mmAdd *mCacheMockAdd) ExpectValueParam2(value bool) *mCacheMockAdd {
 }
 
 // Inspect accepts an inspector function that has same arguments as the cache.Add
-func (mmAdd *mCacheMockAdd) Inspect(f func(key cacheKey, value bool)) *mCacheMockAdd {
+func (mmAdd *mCacheMockAdd) Inspect(f func(key AuthCacheKey, value bool)) *mCacheMockAdd {
 	if mmAdd.mock.inspectFuncAdd != nil {
 		mmAdd.mock.t.Fatalf("Inspect function is already set for CacheMock.Add")
 	}
@@ -201,7 +201,7 @@ func (mmAdd *mCacheMockAdd) Return() *CacheMock {
 }
 
 // Set uses given function f to mock the cache.Add method
-func (mmAdd *mCacheMockAdd) Set(f func(key cacheKey, value bool)) *CacheMock {
+func (mmAdd *mCacheMockAdd) Set(f func(key AuthCacheKey, value bool)) *CacheMock {
 	if mmAdd.defaultExpectation != nil {
 		mmAdd.mock.t.Fatalf("Default expectation is already set for the cache.Add method")
 	}
@@ -217,7 +217,7 @@ func (mmAdd *mCacheMockAdd) Set(f func(key cacheKey, value bool)) *CacheMock {
 
 // When sets expectation for the cache.Add which will trigger the result defined by the following
 // Then helper
-func (mmAdd *mCacheMockAdd) When(key cacheKey, value bool) *CacheMockAddExpectation {
+func (mmAdd *mCacheMockAdd) When(key AuthCacheKey, value bool) *CacheMockAddExpectation {
 	if mmAdd.mock.funcAdd != nil {
 		mmAdd.mock.t.Fatalf("CacheMock.Add mock is already set by Set")
 	}
@@ -259,7 +259,7 @@ func (mmAdd *mCacheMockAdd) invocationsDone() bool {
 }
 
 // Add implements cache
-func (mmAdd *CacheMock) Add(key cacheKey, value bool) {
+func (mmAdd *CacheMock) Add(key AuthCacheKey, value bool) {
 	mm_atomic.AddUint64(&mmAdd.beforeAddCounter, 1)
 	defer mm_atomic.AddUint64(&mmAdd.afterAddCounter, 1)
 
@@ -412,12 +412,12 @@ type CacheMockGetExpectation struct {
 
 // CacheMockGetParams contains parameters of the cache.Get
 type CacheMockGetParams struct {
-	key cacheKey
+	key AuthCacheKey
 }
 
 // CacheMockGetParamPtrs contains pointers to parameters of the cache.Get
 type CacheMockGetParamPtrs struct {
-	key *cacheKey
+	key *AuthCacheKey
 }
 
 // CacheMockGetResults contains results of the cache.Get
@@ -443,7 +443,7 @@ func (mmGet *mCacheMockGet) Optional() *mCacheMockGet {
 }
 
 // Expect sets up expected params for cache.Get
-func (mmGet *mCacheMockGet) Expect(key cacheKey) *mCacheMockGet {
+func (mmGet *mCacheMockGet) Expect(key AuthCacheKey) *mCacheMockGet {
 	if mmGet.mock.funcGet != nil {
 		mmGet.mock.t.Fatalf("CacheMock.Get mock is already set by Set")
 	}
@@ -468,7 +468,7 @@ func (mmGet *mCacheMockGet) Expect(key cacheKey) *mCacheMockGet {
 }
 
 // ExpectKeyParam1 sets up expected param key for cache.Get
-func (mmGet *mCacheMockGet) ExpectKeyParam1(key cacheKey) *mCacheMockGet {
+func (mmGet *mCacheMockGet) ExpectKeyParam1(key AuthCacheKey) *mCacheMockGet {
 	if mmGet.mock.funcGet != nil {
 		mmGet.mock.t.Fatalf("CacheMock.Get mock is already set by Set")
 	}
@@ -491,7 +491,7 @@ func (mmGet *mCacheMockGet) ExpectKeyParam1(key cacheKey) *mCacheMockGet {
 }
 
 // Inspect accepts an inspector function that has same arguments as the cache.Get
-func (mmGet *mCacheMockGet) Inspect(f func(key cacheKey)) *mCacheMockGet {
+func (mmGet *mCacheMockGet) Inspect(f func(key AuthCacheKey)) *mCacheMockGet {
 	if mmGet.mock.inspectFuncGet != nil {
 		mmGet.mock.t.Fatalf("Inspect function is already set for CacheMock.Get")
 	}
@@ -516,7 +516,7 @@ func (mmGet *mCacheMockGet) Return(value bool, exists bool) *CacheMock {
 }
 
 // Set uses given function f to mock the cache.Get method
-func (mmGet *mCacheMockGet) Set(f func(key cacheKey) (value bool, exists bool)) *CacheMock {
+func (mmGet *mCacheMockGet) Set(f func(key AuthCacheKey) (value bool, exists bool)) *CacheMock {
 	if mmGet.defaultExpectation != nil {
 		mmGet.mock.t.Fatalf("Default expectation is already set for the cache.Get method")
 	}
@@ -532,7 +532,7 @@ func (mmGet *mCacheMockGet) Set(f func(key cacheKey) (value bool, exists bool)) 
 
 // When sets expectation for the cache.Get which will trigger the result defined by the following
 // Then helper
-func (mmGet *mCacheMockGet) When(key cacheKey) *CacheMockGetExpectation {
+func (mmGet *mCacheMockGet) When(key AuthCacheKey) *CacheMockGetExpectation {
 	if mmGet.mock.funcGet != nil {
 		mmGet.mock.t.Fatalf("CacheMock.Get mock is already set by Set")
 	}
@@ -574,7 +574,7 @@ func (mmGet *mCacheMockGet) invocationsDone() bool {
 }
 
 // Get implements cache
-func (mmGet *CacheMock) Get(key cacheKey) (value bool, exists bool) {
+func (mmGet *CacheMock) Get(key AuthCacheKey) (value bool, exists bool) {
 	mm_atomic.AddUint64(&mmGet.beforeGetCounter, 1)
 	defer mm_atomic.AddUint64(&mmGet.afterGetCounter, 1)
 

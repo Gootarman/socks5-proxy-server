@@ -33,6 +33,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
+      AUTH_CACHE_MAX_SIZE: ${AUTH_CACHE_MAX_SIZE}
+      AUTH_CACHE_TTL: ${AUTH_CACHE_TTL}
     ports:
       - "${APP_PORT}:8000"
     expose:

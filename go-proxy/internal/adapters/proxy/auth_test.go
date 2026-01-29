@@ -115,7 +115,7 @@ func TestAuthWithCache_Valid(t *testing.T) {
 				t.Helper()
 
 				cache.GetMock.
-					Expect(cacheKey{user: "alice", password: "cached"}).
+					Expect(AuthCacheKey{user: "alice", password: "cached"}).
 					Return(false, true)
 			},
 			want: false,
@@ -127,7 +127,7 @@ func TestAuthWithCache_Valid(t *testing.T) {
 			setup: func(t *testing.T, cache *CacheMock, validator *AuthValidatorMock) {
 				t.Helper()
 
-				key := cacheKey{user: "bob", password: "fresh"}
+				key := AuthCacheKey{user: "bob", password: "fresh"}
 				cache.GetMock.
 					Expect(key).
 					Return(false, false)

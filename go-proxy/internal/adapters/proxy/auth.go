@@ -54,14 +54,14 @@ func (a *Auth) Valid(user, password, _ string) bool {
 	return valid
 }
 
-type cacheKey struct {
+type AuthCacheKey struct {
 	user     string
 	password string
 }
 
 type cache interface {
-	Add(key cacheKey, value bool)
-	Get(key cacheKey) (value, exists bool)
+	Add(key AuthCacheKey, value bool)
+	Get(key AuthCacheKey) (value, exists bool)
 }
 
 type AuthWithCache struct {
@@ -77,7 +77,7 @@ func NewAuthWithCache(cache cache, authValidator authValidator) *AuthWithCache {
 }
 
 func (a *AuthWithCache) Valid(user, password, _ string) bool {
-	entryCacheKey := cacheKey{user, password}
+	entryCacheKey := AuthCacheKey{user, password}
 
 	cachedValue, ok := a.cache.Get(entryCacheKey)
 	if ok {

@@ -1,6 +1,10 @@
 package config
 
-import "github.com/nskondratev/socks5-proxy-server/internal/env"
+import (
+	"time"
+
+	"github.com/nskondratev/socks5-proxy-server/internal/env"
+)
 
 func RedisHost() string {
 	return env.String("REDIS_HOST", "")
@@ -12,4 +16,12 @@ func RedisPort() int {
 
 func RedisDB() int {
 	return env.Int("REDIS_DB", 0)
+}
+
+func AuthCacheMaxSize() int {
+	return env.Int("AUTH_CACHE_MAX_SIZE", 100)
+}
+
+func AuthCacheTTL() time.Duration {
+	return env.Duration("AUTH_CACHE_TTL", time.Hour)
 }

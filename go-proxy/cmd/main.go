@@ -9,6 +9,7 @@ import (
 	"github.com/things-go/go-socks5"
 
 	"github.com/nskondratev/socks5-proxy-server/internal/adapters/proxy"
+	"github.com/nskondratev/socks5-proxy-server/internal/cache"
 	"github.com/nskondratev/socks5-proxy-server/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/internal/password"
 	"github.com/nskondratev/socks5-proxy-server/internal/redis"
@@ -19,8 +20,12 @@ func main() {
 	redisCli := redis.New(config.RedisHost(), config.RedisPort(), config.RedisDB())
 
 	passwords := password.New()
-
 	usersService := users.New(redisCli)
+
+	authCredentialValidator := proxy.NewAuthWithCache(
+		cache.NewExpirableLRU[proxy.AuthCacheKey, bool](config.AuthCacheMaxSize(), config.AuthCacheTTL()),
+		proxy.NewAuth(usersService, passwords),
+	)
 
 	// Create a SOCKS5 server
 	server := socks5.NewServer(
@@ -30,7 +35,7 @@ func main() {
 
 			return nil
 		}),
-		socks5.WithCredential(proxy.NewAuth(usersService, passwords)),
+		socks5.WithCredential(authCredentialValidator),
 	)
 
 	// Create SOCKS5 proxy on localhost port 8000
