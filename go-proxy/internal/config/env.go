@@ -25,3 +25,7 @@ func AuthCacheMaxSize() int {
 func AuthCacheTTL() time.Duration {
 	return env.Duration("AUTH_CACHE_TTL", time.Hour)
 }
+
+func LogLevel() string {
+	return env.String("LOG_LEVEL", "warning")
+}

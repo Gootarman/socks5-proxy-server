@@ -10,6 +10,7 @@ import (
 
 	"github.com/nskondratev/socks5-proxy-server/internal/adapters/proxy"
 	"github.com/nskondratev/socks5-proxy-server/internal/cache"
+	"github.com/nskondratev/socks5-proxy-server/internal/cli"
 	"github.com/nskondratev/socks5-proxy-server/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/internal/password"
 	"github.com/nskondratev/socks5-proxy-server/internal/redis"
@@ -17,10 +18,18 @@ import (
 )
 
 func main() {
+	// TODO: implement graceful shutdown
+	ctx := context.Background()
+
 	redisCli := redis.New(config.RedisHost(), config.RedisPort(), config.RedisDB())
 
 	passwords := password.New()
 	usersService := users.New(redisCli)
+
+	// Handle CLI commands, if passed
+	if handled := cli.HandleCLICommand(ctx, &cli.CLICommandsDeps{}); handled {
+		return
+	}
 
 	authCredentialValidator := proxy.NewAuthWithCache(
 		cache.NewExpirableLRU[proxy.AuthCacheKey, bool](config.AuthCacheMaxSize(), config.AuthCacheTTL()),
