@@ -7,9 +7,9 @@ Motivation for rewriting in Go: when I deployed the proxy on a low-resource VPS 
 What's needed to be implemented:
 - [x] socks5 proxy
 - [x] proxy authentication
-- [ ] last login user date saving
+- [x] last login user date saving
 - [ ] data usage stats
-- [ ] CLI commands for creating and deleting users and getting users stats
+- [x] CLI commands for creating and deleting users and getting users stats
 - [ ] Telegram bot with commands
 - [ ] Telegram bot CLI commands for creating and deleting admin user
 
