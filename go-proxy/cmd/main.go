@@ -18,6 +18,8 @@ import (
 
 	"github.com/nskondratev/socks5-proxy-server/internal/adapters/proxy"
 	"github.com/nskondratev/socks5-proxy-server/internal/bot"
+	"github.com/nskondratev/socks5-proxy-server/internal/bot/commands/start"
+	"github.com/nskondratev/socks5-proxy-server/internal/bot/handlers/message"
 	mw "github.com/nskondratev/socks5-proxy-server/internal/bot/middleware"
 	"github.com/nskondratev/socks5-proxy-server/internal/cache"
 	"github.com/nskondratev/socks5-proxy-server/internal/cli"
@@ -188,13 +190,10 @@ func initBot() (*tele.Bot, error) {
 
 	// Commands
 	// TODO: here commands handlers will be registered. For example:
-	// b.Handle(start.Command, start.New().Handle)
+	b.Handle(start.Command, start.New().Handle)
 
 	// Messages
-	// TODO: here messages handlers will be registered. For example:
-	b.Handle(tele.OnText, func(c tele.Context) error {
-		return c.Reply(c.Text())
-	})
+	b.Handle(tele.OnText, message.New().Handle)
 
 	return b, nil
 }
