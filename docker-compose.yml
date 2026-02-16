@@ -30,11 +30,13 @@ services:
       - redis
     build: ./go-proxy
     environment:
+      LOG_LEVEL: ${LOG_LEVEL}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
       AUTH_CACHE_MAX_SIZE: ${AUTH_CACHE_MAX_SIZE}
       AUTH_CACHE_TTL: ${AUTH_CACHE_TTL}
+      TELEGRAM_API_TOKEN: ${TELEGRAM_API_TOKEN}
     ports:
       - "${APP_PORT}:8000"
     expose:

@@ -9,6 +9,8 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/things-go/go-socks5 v0.1.0
 	golang.org/x/crypto v0.47.0
+	golang.org/x/sync v0.16.0
+	gopkg.in/telebot.v3 v3.3.8
 )
 
 require (

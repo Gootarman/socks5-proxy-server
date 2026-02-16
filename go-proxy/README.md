@@ -12,6 +12,8 @@ What's needed to be implemented:
 - [x] CLI commands for creating and deleting users and getting users stats
 - [ ] Telegram bot with commands
 - [ ] Telegram bot CLI commands for creating and deleting admin user
+- [ ] Telegram bot handling updates via webhook
+- [ ] Make optional proxy authentication
 
 Additional features:
 - [x] In-memory cache for user authentication
@@ -19,3 +21,4 @@ Additional features:
 - [ ] Publishing proxy app as a separate image to Docker Hub
 - [ ] Add different levels tests
 - [ ] Linting and testing via Github Actions
+- [ ] Generating deeplink for setting socks5 proxy in Telegram: https://core.telegram.org/api/links#socks5-proxy-links

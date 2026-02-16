@@ -29,3 +29,11 @@ func AuthCacheTTL() time.Duration {
 func LogLevel() string {
 	return env.String("LOG_LEVEL", "warning")
 }
+
+func TelegramAPIToken() string {
+	return env.String("TELEGRAM_API_TOKEN", "")
+}
+
+func TelegramUpdateProcessingTimeout() time.Duration {
+	return env.Duration("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", time.Minute)
+}
