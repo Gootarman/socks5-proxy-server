@@ -34,3 +34,6 @@ token.json
 
 # MacOs files
 .DS_Store
+
+# Load test outputs
+reports/
