@@ -11,7 +11,7 @@ What's needed to be implemented:
 - [x] data usage stats
 - [x] CLI commands for creating and deleting users and getting users stats
 - [x] Telegram bot CLI commands for creating and deleting admin user
-- [ ] Telegram bot with commands
+- [x] Telegram bot with commands
 - [ ] Telegram bot handling updates via webhook
 - [ ] Make optional proxy authentication
 
