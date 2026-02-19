@@ -5,6 +5,7 @@ go 1.25
 require (
 	github.com/gojuno/minimock/v3 v3.4.7
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.17.3
 	github.com/stretchr/testify v1.11.0
 	github.com/things-go/go-socks5 v0.1.0

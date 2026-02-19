@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/things-go/go-socks5"
 	"golang.org/x/sync/errgroup"
 	tele "gopkg.in/telebot.v3"
@@ -42,6 +43,8 @@ const (
 )
 
 func main() {
+	_ = godotenv.Load()
+
 	// TODO: implement graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
