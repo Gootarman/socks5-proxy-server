@@ -77,3 +77,12 @@ func Int64s(key string, defaultValue []int64) []int64 {
 
 	return out
 }
+
+func Bool(key string, defaultValue bool) bool {
+	parsed, err := strconv.ParseBool(String(key, ""))
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
+}

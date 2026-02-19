@@ -18,6 +18,10 @@ func RedisDB() int {
 	return env.Int("REDIS_DB", 0)
 }
 
+func RequireAuth() bool {
+	return env.Bool("REQUIRE_AUTH", false)
+}
+
 func AuthCacheMaxSize() int {
 	return env.Int("AUTH_CACHE_MAX_SIZE", 100)
 }

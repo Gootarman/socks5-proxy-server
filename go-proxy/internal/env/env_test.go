@@ -218,3 +218,71 @@ func TestInt64s(t *testing.T) {
 		})
 	}
 }
+
+func TestBool(t *testing.T) {
+	type args struct {
+		key          string
+		defaultValue bool
+	}
+
+	tests := []struct {
+		name       string
+		prepareEnv func(t *testing.T)
+		args       args
+		want       bool
+	}{
+		{
+			name: "Env value true",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_BOOL_KEY", "true"))
+			},
+			args: args{
+				key:          "TEST_BOOL_KEY",
+				defaultValue: false,
+			},
+			want: true,
+		},
+		{
+			name: "Env value false",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_BOOL_KEY", "false"))
+			},
+			args: args{
+				key:          "TEST_BOOL_KEY",
+				defaultValue: true,
+			},
+			want: false,
+		},
+		{
+			name: "Default value for missing key",
+			args: args{
+				key:          "NOT_EXISTENT",
+				defaultValue: true,
+			},
+			want: true,
+		},
+		{
+			name: "Failed to parse bool, expect default value",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_BOOL_KEY", "some_bad"))
+			},
+			args: args{
+				key:          "TEST_BOOL_KEY",
+				defaultValue: false,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepareEnv != nil {
+				tt.prepareEnv(t)
+			}
+
+			got := Bool(tt.args.key, tt.args.defaultValue)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
