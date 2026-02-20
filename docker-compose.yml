@@ -30,20 +30,30 @@ services:
       - redis
     build: ./go-proxy
     environment:
+      # App settings
       LOG_LEVEL: ${LOG_LEVEL}
+      # Redis connection settings
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
+      # Proxy settings
       REQUIRE_AUTH: ${REQUIRE_AUTH}
       AUTH_CACHE_MAX_SIZE: ${AUTH_CACHE_MAX_SIZE}
       AUTH_CACHE_TTL: ${AUTH_CACHE_TTL}
       REDIS_AUTH_UPDATES_QUEUE_SIZE: ${REDIS_AUTH_UPDATES_QUEUE_SIZE}
       REDIS_USAGE_UPDATES_QUEUE_SIZE: ${REDIS_USAGE_UPDATES_QUEUE_SIZE}
+      # Telegram bot settings
       TELEGRAM_API_TOKEN: ${TELEGRAM_API_TOKEN}
+      TELEGRAM_USE_WEBHOOKS: ${TELEGRAM_USE_WEBHOOKS}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL}
+      BOT_APP_PORT: ${BOT_APP_PORT}
+      PUBLIC_URL: ${PUBLIC_URL}
     ports:
       - "${APP_PORT}:8000"
+      - "${BOT_APP_PORT}:${BOT_APP_PORT}"
     expose:
       - "${APP_PORT}/tcp"
+      - "${BOT_APP_PORT}/tcp"
     restart: always
 
   # telegram_bot:

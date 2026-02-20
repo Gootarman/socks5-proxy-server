@@ -13,7 +13,9 @@ What's needed to be implemented:
 - [x] Telegram bot CLI commands for creating and deleting admin user
 - [x] Telegram bot with commands
 - [x] Make optional proxy authentication
-- [ ] Telegram bot handling updates via webhook
+- [x] Telegram bot handling updates via webhook
+- [ ] Add support for self-signed SSL certificates for Telegram webhook
+- [ ] Add clearing usage stats every month
 
 Additional features:
 - [x] In-memory cache for user authentication

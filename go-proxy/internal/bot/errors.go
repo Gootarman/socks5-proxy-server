@@ -16,6 +16,10 @@ func OnErrorCb(err error, c tele.Context) {
 		slog.String(log.FieldError, err.Error()),
 	)
 
+	if c == nil {
+		return
+	}
+
 	replyErr := c.Reply("Some error occurred, check server logs for details.")
 	if replyErr != nil {
 		slog.LogAttrs(

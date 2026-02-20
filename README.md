@@ -44,6 +44,11 @@ docker exec -it socks5-proxy-server-proxy-1 sh -c 'exec node scripts/users-stats
   - TELEGRAM_API_TOKEN - API token from BotFather
   - TELEGRAM_WEBHOOK_URL - default: /webhook
   - TELEGRAM_USE_WEBHOOKS - 1 - use webhooks, 0 - use polling. To use webhooks you need to generate ssl certificates
+
+- Generate self-signed SSL certificates for webhook mode:
+```bash
+mkdir -p ssl && openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout ssl/key.pem -out ssl/crt.pem -days 365 -subj "/CN=<YOUR_IP_ADDRESS_OR_DOMAIN>"
+```
 - Create admin:
 ```bash
 docker exec -it socks5-proxy-server-telegram_bot-1 sh -c 'exec node scripts/create-admin.js' 

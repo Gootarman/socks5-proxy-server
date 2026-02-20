@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -145,7 +146,11 @@ func main() {
 
 	// Poll bot updates
 	g.Go(func() error {
-		slog.LogAttrs(ctx, slog.LevelInfo, "start polling updates")
+		if config.TelegramUseWebHooks() {
+			slog.LogAttrs(ctx, slog.LevelInfo, "start receiving updates via webhook")
+		} else {
+			slog.LogAttrs(ctx, slog.LevelInfo, "start polling updates")
+		}
 
 		b.Start()
 
@@ -191,6 +196,11 @@ func getUsernameFromRequest(request *socks5.Request) (string, bool) {
 }
 
 func initBot(redisCli *redis.Redis) (*tele.Bot, error) {
+	poller, err := makeTelegramPoller()
+	if err != nil {
+		return nil, err
+	}
+
 	// Bot
 	botConf := tele.Settings{
 		Token: config.TelegramAPIToken(),
@@ -198,12 +208,19 @@ func initBot(redisCli *redis.Redis) (*tele.Bot, error) {
 			Timeout: httpClientTimeout,
 		},
 		OnError: bot.OnErrorCb,
-		Poller:  &tele.LongPoller{Timeout: 10 * time.Second},
+		Poller:  poller,
 	}
 
 	b, err := tele.NewBot(botConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new telegram bot: %w", err)
+	}
+
+	// Remove any webhooks in case of long polling used
+	if !config.TelegramUseWebHooks() {
+		if err := b.RemoveWebhook(); err != nil {
+			return nil, fmt.Errorf("failed to remove webhook: %w", err)
+		}
 	}
 
 	adminService := admin.New(redisCli)
@@ -227,4 +244,44 @@ func initBot(redisCli *redis.Redis) (*tele.Bot, error) {
 	b.Handle(tele.OnText, message.New(botStore).Handle)
 
 	return b, nil
+}
+
+func makeTelegramPoller() (tele.Poller, error) {
+	if !config.TelegramUseWebHooks() {
+		return &tele.LongPoller{Timeout: 10 * time.Second}, nil
+	}
+
+	webHookURL, err := buildTelegramWebhookURL()
+	if err != nil {
+		return nil, err
+	}
+
+	// sslCertPath := filepath.Join("ssl", "crt.pem")
+
+	return &tele.Webhook{
+		Listen: fmt.Sprintf(":%d", config.BotAppPort()),
+		Endpoint: &tele.WebhookEndpoint{
+			PublicURL: webHookURL,
+			// Cert:      sslCertPath,
+		},
+		// TLS: &tele.WebhookTLS{
+		// Cert: sslCertPath,
+		// Key:  filepath.Join("ssl", "key.pem"),
+		// },
+	}, nil
+}
+
+func buildTelegramWebhookURL() (string, error) {
+	parsedPublicURL, err := url.Parse(config.PublicURL())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse PUBLIC_URL: %w", err)
+	}
+
+	if parsedPublicURL.Scheme == "" || parsedPublicURL.Host == "" {
+		return "", fmt.Errorf("PUBLIC_URL must be an absolute URL")
+	}
+
+	parsedPublicURL.Path = parsedPublicURL.JoinPath(config.TelegramWebHookURL()).Path + config.TelegramAPIToken()
+
+	return parsedPublicURL.String(), nil
 }

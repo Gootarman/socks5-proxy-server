@@ -16,6 +16,10 @@ func SetContext(c tele.Context, ctx context.Context) {
 }
 
 func GetContext(c tele.Context) context.Context {
+	if c == nil {
+		return context.Background()
+	}
+
 	if ctx, ok := c.Get(contextFieldContext).(context.Context); ok {
 		return ctx
 	}

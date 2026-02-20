@@ -54,6 +54,18 @@ func PublicURL() string {
 	return env.String("PUBLIC_URL", "")
 }
 
+func TelegramWebHookURL() string {
+	return env.String("TELEGRAM_WEBHOOK_URL", "/webhook")
+}
+
+func TelegramUseWebHooks() bool {
+	return env.Bool("TELEGRAM_USE_WEBHOOKS", false)
+}
+
+func BotAppPort() int {
+	return env.Int("BOT_APP_PORT", 8443)
+}
+
 func AppPort() int {
 	return env.Int("APP_PORT", 54321)
 }
