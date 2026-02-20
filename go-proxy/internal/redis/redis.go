@@ -47,3 +47,7 @@ func (r *Redis) HDel(ctx context.Context, key string, fields ...string) error {
 func (r *Redis) HIncrBy(ctx context.Context, key, field string, incr int64) error {
 	return r.cli.HIncrBy(ctx, key, field, incr).Err()
 }
+
+func (r *Redis) Del(ctx context.Context, keys ...string) error {
+	return r.cli.Del(ctx, keys...).Err()
+}

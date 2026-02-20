@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/joho/godotenv"
 	"github.com/things-go/go-socks5"
 	"golang.org/x/sync/errgroup"
@@ -130,7 +131,25 @@ func main() {
 		return
 	}
 
+	scheduler, err := initSchedulerForClearingUsageStats(ctx, usersService)
+	if err != nil {
+		slog.LogAttrs(
+			ctx,
+			slog.LevelError,
+			"failed to create scheduler for clearing usage stats",
+			slog.String(log.FieldError, err.Error()),
+		)
+
+		return
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		scheduler.Start()
+
+		return nil
+	})
 
 	g.Go(func() error {
 		slog.LogAttrs(ctx, slog.LevelInfo, "start redis updates manager")
@@ -161,7 +180,7 @@ func main() {
 		<-ctx.Done()
 		b.Stop()
 
-		return nil
+		return scheduler.Shutdown()
 	})
 
 	if err = g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
@@ -284,4 +303,31 @@ func buildTelegramWebhookURL() (string, error) {
 	parsedPublicURL.Path = parsedPublicURL.JoinPath(config.TelegramWebHookURL()).Path + config.TelegramAPIToken()
 
 	return parsedPublicURL.String(), nil
+}
+
+func initSchedulerForClearingUsageStats(ctx context.Context, usersService *users.Users) (gocron.Scheduler, error) {
+	// create a scheduler
+	s, err := gocron.NewScheduler()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create scheduler: %w", err)
+	}
+
+	if _, err = s.NewJob(
+		gocron.CronJob("0 0 1 * *", false),
+		gocron.NewTask(func(ctx context.Context) {
+			if err := usersService.ClearDataUsage(ctx); err != nil {
+				slog.LogAttrs(
+					ctx,
+					slog.LevelError,
+					"failed to clear data usage",
+					slog.String(log.FieldError, err.Error()),
+				)
+			}
+		}),
+		gocron.WithContext(ctx),
+	); err != nil {
+		return nil, fmt.Errorf("failed to create scheduled job: %w", err)
+	}
+
+	return s, nil
 }

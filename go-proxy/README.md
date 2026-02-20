@@ -14,11 +14,12 @@ What's needed to be implemented:
 - [x] Telegram bot with commands
 - [x] Make optional proxy authentication
 - [x] Telegram bot handling updates via webhook
+- [x] Add clearing usage stats every month
 - [ ] Add support for self-signed SSL certificates for Telegram webhook
-- [ ] Add clearing usage stats every month
 
 Additional features:
 - [x] In-memory cache for user authentication
+- [ ] Config for disabling Telegram bot in app
 - [ ] Graceful shutdown
 - [ ] Prometheus metrics export
 - [ ] Publishing proxy app as a separate image to Docker Hub

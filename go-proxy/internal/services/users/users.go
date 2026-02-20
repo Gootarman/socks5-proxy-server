@@ -16,6 +16,7 @@ type redis interface {
 	HGet(ctx context.Context, key, field string) (string, error)
 	HSet(ctx context.Context, key string, values ...interface{}) error
 	HIncrBy(ctx context.Context, key, field string, incr int64) error
+	Del(ctx context.Context, keys ...string) error
 }
 
 type Users struct {
@@ -46,6 +47,14 @@ func (u *Users) UpdateLastAuthDate(ctx context.Context, userName string) error {
 func (u *Users) IncreaseDataUsage(ctx context.Context, userName string, dataLen int64) error {
 	if err := u.redis.HIncrBy(ctx, userUsageDataKey, userName, dataLen); err != nil {
 		return fmt.Errorf("[users] failed to increase data usage: %w", err)
+	}
+
+	return nil
+}
+
+func (u *Users) ClearDataUsage(ctx context.Context) error {
+	if err := u.redis.Del(ctx, userUsageDataKey); err != nil {
+		return fmt.Errorf("[users] failed to clear data usage: %w", err)
 	}
 
 	return nil

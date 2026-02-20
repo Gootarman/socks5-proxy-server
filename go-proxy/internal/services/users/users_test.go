@@ -11,6 +11,7 @@ type redisStub struct {
 	hgetFn    func(ctx context.Context, key, field string) (string, error)
 	hsetFn    func(ctx context.Context, key string, values ...interface{}) error
 	hincrByFn func(ctx context.Context, key, field string, incr int64) error
+	delFn     func(ctx context.Context, keys ...string) error
 }
 
 func (r *redisStub) HGet(ctx context.Context, key, field string) (string, error) {
@@ -23,6 +24,10 @@ func (r *redisStub) HSet(ctx context.Context, key string, values ...interface{})
 
 func (r *redisStub) HIncrBy(ctx context.Context, key, field string, incr int64) error {
 	return r.hincrByFn(ctx, key, field, incr)
+}
+
+func (r *redisStub) Del(ctx context.Context, keys ...string) error {
+	return r.delFn(ctx, keys...)
 }
 
 func TestGetPasswordHash(t *testing.T) {
@@ -186,6 +191,46 @@ func TestIncreaseDataUsage(t *testing.T) {
 		err := u.IncreaseDataUsage(context.Background(), "alice", 512)
 		if err == nil {
 			t.Fatal("IncreaseDataUsage() expected error, got nil")
+		}
+	})
+}
+
+func TestClearDataUsage(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		var gotKeys []string
+		u := New(&redisStub{delFn: func(_ context.Context, keys ...string) error {
+			gotKeys = keys
+			return nil
+		}})
+
+		err := u.ClearDataUsage(context.Background())
+		if err != nil {
+			t.Fatalf("ClearDataUsage() unexpected error: %v", err)
+		}
+
+		if len(gotKeys) != 1 {
+			t.Fatalf("Del keys count = %d, want 1", len(gotKeys))
+		}
+
+		if gotKeys[0] != userUsageDataKey {
+			t.Fatalf("Del key = %q, want %q", gotKeys[0], userUsageDataKey)
+		}
+	})
+
+	t.Run("redis error", func(t *testing.T) {
+		t.Parallel()
+
+		u := New(&redisStub{delFn: func(_ context.Context, _ ...string) error {
+			return errors.New("delete failed")
+		}})
+
+		err := u.ClearDataUsage(context.Background())
+		if err == nil {
+			t.Fatal("ClearDataUsage() expected error, got nil")
 		}
 	})
 }
