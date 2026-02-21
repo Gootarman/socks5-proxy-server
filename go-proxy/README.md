@@ -72,3 +72,17 @@ If the bot works in webhook mode (`TELEGRAM_USE_WEBHOOKS=1`), you can optionally
 - `TELEGRAM_WEBHOOK_TLS_KEY_PATH` — path to private key file.
 
 TLS is enabled only when **both** variables are set. If one or both are empty, webhook server starts without local TLS.
+
+## Integration tests (regression e2e)
+
+Integration tests are located in `/integration` and are built only with the `integration` tag.
+
+Run locally:
+
+```bash
+cd go-proxy
+go test -tags=integration ./integration -count=1
+```
+
+The same command is executed in CI by GitHub Actions workflow:
+`/.github/workflows/go-proxy-integration.yml`.

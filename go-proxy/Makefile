@@ -26,6 +26,10 @@ lint:
 test:
 	go test -race ./... -coverprofile=coverage.out && go tool cover -func=coverage.out && echo "Ok"
 
+.PHONY: regress
+regress:
+	go test -tags=integration ./integration -count=1 -v
+
 .PHONY: run
 run:
 	go run cmd/main.go
