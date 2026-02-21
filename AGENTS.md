@@ -21,6 +21,7 @@
 
 ## Common commands
 - Go proxy tests: `cd go-proxy && go test ./...`
+- Also call linters check after tests: `cd go-proxy && make lint`
 - Build Go binary for Docker (expected at `go-proxy/dist/proxy`): `cd go-proxy && make build` (or your local build flow)
 - Docker compose: `docker compose up --build`
 
