@@ -58,6 +58,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 	}
 
 	stats := make([]userStat, 0, len(dataUsage))
+
 	for username, usageStr := range dataUsage {
 		usage, parseErr := strconv.ParseInt(usageStr, 10, 64)
 		if parseErr != nil {

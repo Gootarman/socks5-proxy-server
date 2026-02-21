@@ -32,6 +32,7 @@ func New(redis redis, in io.Reader, out io.Writer) *CommandHandler {
 	if in == nil {
 		in = os.Stdin
 	}
+
 	if out == nil {
 		out = os.Stdout
 	}
@@ -49,6 +50,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 	}
 
 	fmt.Fprint(h.out, "Input username and press Enter: ")
+
 	username, err := h.readInputLine()
 	if err != nil {
 		return fmt.Errorf("[delete-user] failed to read username: %w", err)

@@ -138,10 +138,28 @@ func main() {
 		exitErr(fmt.Errorf("failed to write reports: %w", err))
 	}
 
-	fmt.Printf("Load test finished. Reports written to %s\n", cfg.ReportDir)
-	fmt.Printf("Completed: %d, Failed: %d, Max simultaneous: %d\n", rep.CompletedConnections, rep.FailedConnections, rep.MaxSimultaneousConns)
-	fmt.Printf("Connect latency p95=%.2fms p98=%.2fms p99=%.2fms p99.9=%.2fms\n", rep.ConnectLatencyP95Ms, rep.ConnectLatencyP98Ms, rep.ConnectLatencyP99Ms, rep.ConnectLatencyP999Ms)
-	fmt.Printf("Throughput total=%.2f MB/s, per connection=%.2f MB/s\n", rep.ThroughputTotalMBSec, rep.ThroughputPerConnMBSec)
+	fmt.Fprintf(os.Stdout, "Load test finished. Reports written to %s\n", cfg.ReportDir)
+	fmt.Fprintf(
+		os.Stdout,
+		"Completed: %d, Failed: %d, Max simultaneous: %d\n",
+		rep.CompletedConnections,
+		rep.FailedConnections,
+		rep.MaxSimultaneousConns,
+	)
+	fmt.Fprintf(
+		os.Stdout,
+		"Connect latency p95=%.2fms p98=%.2fms p99=%.2fms p99.9=%.2fms\n",
+		rep.ConnectLatencyP95Ms,
+		rep.ConnectLatencyP98Ms,
+		rep.ConnectLatencyP99Ms,
+		rep.ConnectLatencyP999Ms,
+	)
+	fmt.Fprintf(
+		os.Stdout,
+		"Throughput total=%.2f MB/s, per connection=%.2f MB/s\n",
+		rep.ThroughputTotalMBSec,
+		rep.ThroughputPerConnMBSec,
+	)
 
 	if runErr != nil {
 		exitErr(runErr)
@@ -377,6 +395,7 @@ func socks5UserPassAuth(conn net.Conn, username, password string) error {
 	return nil
 }
 
+//nolint:cyclop // SOCKS5 handshake branches are protocol-driven.
 func socks5Connect(conn net.Conn, targetAddr string) error {
 	host, portRaw, err := net.SplitHostPort(targetAddr)
 	if err != nil {

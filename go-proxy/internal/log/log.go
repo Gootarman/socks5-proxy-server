@@ -22,8 +22,10 @@ func SetDefaultWithParams(outputFormat Output, logLevel slog.Level) {
 	switch outputFormat {
 	case OutputJSON:
 		h = slog.NewJSONHandler(os.Stdout, hOpts)
-	default:
+	case OutputText:
 		h = slog.NewTextHandler(os.Stdout, hOpts)
+	default:
+		panic(fmt.Sprintf("unknown output format %q", outputFormat))
 	}
 
 	slog.SetDefault(slog.New(h))

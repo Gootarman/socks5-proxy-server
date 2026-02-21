@@ -33,7 +33,9 @@ func (h *Handler) Handle(c tele.Context) error {
 	}
 
 	ctx := bot.GetContext(c)
-	if err := h.store.SetUserState(ctx, sender.Username, store.UserState{State: store.StateIdle, Data: map[string]string{}}); err != nil {
+	state := store.UserState{State: store.StateIdle, Data: map[string]string{}}
+
+	if err := h.store.SetUserState(ctx, sender.Username, state); err != nil {
 		return fmt.Errorf("failed to save user state: %w", err)
 	}
 

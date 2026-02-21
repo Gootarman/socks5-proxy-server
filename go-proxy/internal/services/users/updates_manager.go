@@ -32,6 +32,7 @@ func NewUpdatesManager(updater updater, authQueueSize, usageQueueSize int) *Upda
 	if authQueueSize < 1 {
 		authQueueSize = 1
 	}
+
 	if usageQueueSize < 1 {
 		usageQueueSize = 1
 	}

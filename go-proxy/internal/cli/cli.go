@@ -2,7 +2,7 @@ package cli
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/nskondratev/socks5-proxy-server/internal/cli/commands/createadmin"
@@ -23,7 +23,7 @@ type redis interface {
 	HExists(ctx context.Context, key, field string) (bool, error)
 }
 
-type CLICommandsDeps struct {
+type CommandsDeps struct {
 	Redis redis
 }
 
@@ -32,7 +32,7 @@ type commandHandler interface {
 	Handle(ctx context.Context) error
 }
 
-func HandleCLICommand(ctx context.Context, deps *CLICommandsDeps) (handled bool) {
+func HandleCLICommand(ctx context.Context, deps *CommandsDeps) (handled bool) {
 	if len(os.Args) < 2 || os.Args[1] == "" {
 		return handled
 	}
@@ -42,7 +42,12 @@ func HandleCLICommand(ctx context.Context, deps *CLICommandsDeps) (handled bool)
 	handled = true
 	commandName := os.Args[1]
 
-	fmt.Printf("In CLI command mode, process command with name: %s\n", commandName)
+	slog.LogAttrs(
+		ctx,
+		slog.LevelInfo,
+		"in CLI command mode, process command",
+		slog.String("command", commandName),
+	)
 
 	adminService := admin.New(deps.Redis)
 
@@ -57,7 +62,13 @@ func HandleCLICommand(ctx context.Context, deps *CLICommandsDeps) (handled bool)
 	for i := range commands {
 		if commands[i].CanHandle(ctx, commandName) {
 			if err := commands[i].Handle(ctx); err != nil {
-				fmt.Printf("Failed to handle command %s, error = %s\n", commandName, err.Error())
+				slog.LogAttrs(
+					ctx,
+					slog.LevelError,
+					"failed to handle CLI command",
+					slog.String("command", commandName),
+					slog.String(log.FieldError, err.Error()),
+				)
 
 				return handled
 			}
@@ -66,7 +77,12 @@ func HandleCLICommand(ctx context.Context, deps *CLICommandsDeps) (handled bool)
 		}
 	}
 
-	fmt.Printf("Unknown command: %s\n", commandName)
+	slog.LogAttrs(
+		ctx,
+		slog.LevelWarn,
+		"unknown CLI command",
+		slog.String("command", commandName),
+	)
 
 	return handled
 }

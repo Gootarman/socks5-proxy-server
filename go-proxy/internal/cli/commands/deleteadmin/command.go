@@ -28,6 +28,7 @@ func New(adminService adminService, in io.Reader, out io.Writer) *CommandHandler
 	if in == nil {
 		in = os.Stdin
 	}
+
 	if out == nil {
 		out = os.Stdout
 	}
@@ -39,6 +40,7 @@ func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
+//nolint:wsl // CLI prompt flow is kept linear for readability.
 func (h *CommandHandler) Handle(ctx context.Context) error {
 	if h.adminService == nil {
 		return fmt.Errorf("[delete-admin] admin service dependency is not configured")

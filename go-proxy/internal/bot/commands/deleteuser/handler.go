@@ -25,7 +25,11 @@ func (h *Handler) Handle(c tele.Context) error {
 		return nil
 	}
 
-	if err := h.store.SetUserState(bot.GetContext(c), sender.Username, store.UserState{State: store.StateDeleteUserEnterUsername, Data: map[string]string{}}); err != nil {
+	state := store.UserState{
+		State: store.StateDeleteUserEnterUsername,
+		Data:  map[string]string{},
+	}
+	if err := h.store.SetUserState(bot.GetContext(c), sender.Username, state); err != nil {
 		return err
 	}
 

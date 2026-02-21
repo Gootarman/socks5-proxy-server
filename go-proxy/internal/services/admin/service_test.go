@@ -22,12 +22,14 @@ type redisMock struct {
 func (m *redisMock) HSet(_ context.Context, key string, values ...interface{}) error {
 	m.hSetKey = key
 	m.hSetValues = values
+
 	return m.hSetErr
 }
 
 func (m *redisMock) HDel(_ context.Context, key string, fields ...string) error {
 	m.hDelKey = key
 	m.hDelFields = fields
+
 	return m.hDelErr
 }
 

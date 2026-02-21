@@ -44,6 +44,7 @@ const (
 	httpClientTimeout = 30 * time.Second
 )
 
+//nolint:gocognit,gocyclo,cyclop,funlen // Startup wiring intentionally keeps orchestration in one place.
 func main() {
 	_ = godotenv.Load()
 
@@ -57,7 +58,7 @@ func main() {
 	usersService := users.New(redisCli)
 
 	// Handle CLI commands, if passed
-	if handled := cli.HandleCLICommand(ctx, &cli.CLICommandsDeps{Redis: redisCli}); handled {
+	if handled := cli.HandleCLICommand(ctx, &cli.CommandsDeps{Redis: redisCli}); handled {
 		return
 	}
 
@@ -117,6 +118,7 @@ func main() {
 
 	// Create a SOCKS5 server
 	server := socks5.NewServer(socks5Opts...)
+	//nolint:gosec // Binding on all interfaces is expected for the proxy service.
 	proxyListener, err := net.Listen("tcp", ":8000")
 	if err != nil {
 		slog.LogAttrs(
@@ -195,6 +197,7 @@ func main() {
 		<-ctx.Done()
 
 		b.Stop()
+
 		if err := proxyListener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			return err
 		}
@@ -302,6 +305,7 @@ func makeTelegramPoller() (tele.Poller, error) {
 
 	certPath := config.TelegramWebhookTLSCertPath()
 	keyPath := config.TelegramWebhookTLSKeyPath()
+
 	if certPath == "" || keyPath == "" {
 		return poller, nil
 	}

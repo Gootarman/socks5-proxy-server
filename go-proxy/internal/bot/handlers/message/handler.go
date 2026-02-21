@@ -25,6 +25,7 @@ type Handler struct{ store storeI }
 
 func New(store storeI) *Handler { return &Handler{store: store} }
 
+//nolint:gocognit,gocyclo,cyclop,funlen,wsl // State machine handler is intentionally centralized.
 func (h *Handler) Handle(c tele.Context) error {
 	if strings.HasPrefix(strings.TrimSpace(c.Text()), "/") {
 		return nil
@@ -91,19 +92,26 @@ func (h *Handler) Handle(c tele.Context) error {
 			return err
 		}
 
-		if err := h.store.SetUserState(ctx, sender.Username, store.UserState{State: store.StateIdle, Data: map[string]string{}}); err != nil {
+		state := store.UserState{State: store.StateIdle, Data: map[string]string{}}
+		if err := h.store.SetUserState(ctx, sender.Username, state); err != nil {
 			return err
 		}
 
 		message := fmt.Sprintf(
-			"User created. Send this settings to him:\n\n<b>host:</b> %s\n<b>port:</b> %d\n<b>username:</b> %s\n<b>password:</b> %s",
+			"User created. Send these settings to the user:\n\n"+
+				"<b>host:</b> %s\n<b>port:</b> %d\n<b>username:</b> %s\n<b>password:</b> %s",
 			store.CleanPublicHost(config.PublicURL()),
 			config.AppPort(),
 			proxyUsername,
 			text,
 		)
 
-		return c.Send(message, &tele.SendOptions{ParseMode: tele.ModeHTML, ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true}})
+		opts := &tele.SendOptions{
+			ParseMode:   tele.ModeHTML,
+			ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
+		}
+
+		return c.Send(message, opts)
 	case store.StateDeleteUserEnterUsername:
 		isFree, err := h.store.IsUsernameFree(ctx, text)
 		if err != nil {
@@ -117,7 +125,8 @@ func (h *Handler) Handle(c tele.Context) error {
 			return err
 		}
 
-		if err = h.store.SetUserState(ctx, sender.Username, store.UserState{State: store.StateIdle, Data: map[string]string{}}); err != nil {
+		state := store.UserState{State: store.StateIdle, Data: map[string]string{}}
+		if err = h.store.SetUserState(ctx, sender.Username, state); err != nil {
 			return err
 		}
 

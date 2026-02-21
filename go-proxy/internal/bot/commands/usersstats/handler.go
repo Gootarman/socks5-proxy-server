@@ -30,6 +30,7 @@ func (h *Handler) Handle(c tele.Context) error {
 
 	ctx := bot.GetContext(c)
 	stats, err := h.store.GetUsersStats(ctx)
+
 	if err != nil {
 		return err
 	}
@@ -39,15 +40,23 @@ func (h *Handler) Handle(c tele.Context) error {
 		msg += "No usage stats."
 	} else {
 		parts := make([]string, 0, len(stats))
+
 		for _, s := range stats {
 			parts = append(parts, fmt.Sprintf("<b>%d.</b> %s (%s): %s", s.Num, s.Username, s.LastAuth, s.Usage))
 		}
+
 		msg += strings.Join(parts, "\n")
 	}
 
-	if err = h.store.SetUserState(ctx, sender.Username, store.UserState{State: store.StateIdle, Data: map[string]string{}}); err != nil {
+	state := store.UserState{State: store.StateIdle, Data: map[string]string{}}
+	if err = h.store.SetUserState(ctx, sender.Username, state); err != nil {
 		return err
 	}
 
-	return c.Send(msg, &tele.SendOptions{ParseMode: tele.ModeHTML, ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true}})
+	opts := &tele.SendOptions{
+		ParseMode:   tele.ModeHTML,
+		ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true},
+	}
+
+	return c.Send(msg, opts)
 }

@@ -25,9 +25,15 @@ func (h *Handler) Handle(c tele.Context) error {
 		return nil
 	}
 
-	if err := h.store.SetUserState(bot.GetContext(c), sender.Username, store.UserState{State: store.StateCreateUserEnterUsername, Data: map[string]string{}}); err != nil {
+	state := store.UserState{
+		State: store.StateCreateUserEnterUsername,
+		Data:  map[string]string{},
+	}
+	if err := h.store.SetUserState(bot.GetContext(c), sender.Username, state); err != nil {
 		return err
 	}
 
-	return c.Send("Enter username for the new proxy user.", &tele.SendOptions{ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true}})
+	opts := &tele.SendOptions{ReplyMarkup: &tele.ReplyMarkup{RemoveKeyboard: true}}
+
+	return c.Send("Enter username for the new proxy user.", opts)
 }

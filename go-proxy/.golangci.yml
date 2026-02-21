@@ -75,9 +75,24 @@ issues:
       linters:
         - funlen
         - dupl
+        - copyloopvar
+        - cyclop
+        - gocognit
+        - goconst
+        - gocyclo
+        - nlreturn
+        - wsl
     - path: scripts
       linters:
         - forbidigo
         - gocritic
         - revive
+        - wsl
+    - path: cmd/loadtest/main.go
+      linters:
+        - gocognit
+        - gocyclo
+        - gosec
+        - lll
+        - nlreturn
         - wsl

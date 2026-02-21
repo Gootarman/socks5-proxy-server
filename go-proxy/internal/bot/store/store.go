@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// TODO: вынести отсюда методы работы с пользователями в services/users. Все, что работают кроме ключа Redis user_state
+// TODO: вынести отсюда методы работы с пользователями в services/users. Все, что работают кроме ключа Redis user_state.
 const (
 	userAuthKey  = "user_auth"
 	dataUsageKey = "user_usage_data"
@@ -27,6 +27,7 @@ const (
 const (
 	StateIdle                    = "idle"
 	StateCreateUserEnterUsername = "create_user_enter_username"
+	//nolint:gosec // False positive: state machine value, not a credential.
 	StateCreateUserEnterPassword = "create_user_enter_password"
 	StateDeleteUserEnterUsername = "delete_user_enter_username"
 )
@@ -58,8 +59,10 @@ func New(redis redis) *Store { return &Store{redis: redis} }
 func (s *Store) GetUserState(ctx context.Context, username string) (*UserState, error) {
 	stateJSON, err := s.redis.HGet(ctx, userStateKey, username)
 	if errors.Is(err, goredis.Nil) {
+		//nolint:nilnil // Missing state is a valid case for callers.
 		return nil, nil
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user state: %w", err)
 	}
@@ -110,6 +113,7 @@ func (s *Store) GetUsersStats(ctx context.Context) ([]UserStat, error) {
 	}
 
 	rawStats := make([]rawStat, 0, len(usageData))
+
 	for username, rawUsage := range usageData {
 		usage, parseErr := strconv.ParseInt(rawUsage, 10, 64)
 		if parseErr != nil {
@@ -175,6 +179,7 @@ func (s *Store) IsUsernameFree(ctx context.Context, username string) (bool, erro
 	if errors.Is(err, goredis.Nil) {
 		return true, nil
 	}
+
 	if err != nil {
 		return false, fmt.Errorf("failed to check if user exists: %w", err)
 	}
@@ -246,5 +251,6 @@ func formatFromNow(raw string) string {
 
 func CleanPublicHost(raw string) string {
 	withoutScheme := strings.TrimPrefix(strings.TrimPrefix(raw, "https://"), "http://")
+
 	return strings.TrimSuffix(withoutScheme, "/")
 }

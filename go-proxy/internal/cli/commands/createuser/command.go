@@ -33,6 +33,7 @@ func New(redis redis, in io.Reader, out io.Writer) *CommandHandler {
 	if in == nil {
 		in = os.Stdin
 	}
+
 	if out == nil {
 		out = os.Stdout
 	}
@@ -44,12 +45,14 @@ func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
+//nolint:wsl // CLI prompt flow is kept linear for readability.
 func (h *CommandHandler) Handle(ctx context.Context) error {
 	if h.redis == nil {
 		return fmt.Errorf("[create-user] redis dependency is not configured")
 	}
 
 	fmt.Fprint(h.out, "Input username and press Enter: ")
+
 	username, err := h.readInputLine()
 	if err != nil {
 		return fmt.Errorf("[create-user] failed to read username: %w", err)
