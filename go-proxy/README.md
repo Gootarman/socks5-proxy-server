@@ -19,12 +19,12 @@ What's needed to be implemented:
 
 Additional features:
 - [x] In-memory cache for user authentication
+- [x] Graceful shutdown
+- [x] Add different levels tests
+- [x] Linting and testing via Github Actions
 - [ ] Config for disabling Telegram bot in app
-- [ ] Graceful shutdown
 - [ ] Prometheus metrics export
 - [ ] Publishing proxy app as a separate image to Docker Hub
-- [ ] Add different levels tests
-- [ ] Linting and testing via Github Actions
 - [ ] Generating deeplink for setting socks5 proxy in Telegram: https://core.telegram.org/api/links#socks5-proxy-links
 
 ## Load testing SOCKS5 proxy locally
