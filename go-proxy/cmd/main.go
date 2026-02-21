@@ -319,6 +319,7 @@ func initSchedulerForClearingUsageStats(ctx context.Context, usersService *users
 		gocron.CronJob("0 0 1 * *", false),
 		gocron.NewTask(func(ctx context.Context) {
 			if err := usersService.ClearDataUsage(ctx); err != nil {
+				// TODO: написать чуть более удобную обёртку для работы с логами
 				slog.LogAttrs(
 					ctx,
 					slog.LevelError,

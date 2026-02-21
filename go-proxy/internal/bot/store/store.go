@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// TODO: вынести отсюда методы работы с пользователями в services/users. Все, что работают кроме ключа Redis user_state
 const (
 	userAuthKey  = "user_auth"
 	dataUsageKey = "user_usage_data"
