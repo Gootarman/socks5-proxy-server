@@ -286,3 +286,117 @@ func TestBool(t *testing.T) {
 		})
 	}
 }
+
+func TestInt64(t *testing.T) {
+	type args struct {
+		key          string
+		defaultValue int64
+	}
+
+	tests := []struct {
+		name       string
+		prepareEnv func(t *testing.T)
+		args       args
+		want       int64
+	}{
+		{
+			name: "Env value",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_INT64_KEY", "123"))
+			},
+			args: args{
+				key:          "TEST_INT64_KEY",
+				defaultValue: 1,
+			},
+			want: 123,
+		},
+		{
+			name: "Default value for missing key",
+			args: args{
+				key:          "NOT_EXISTENT",
+				defaultValue: 7,
+			},
+			want: 7,
+		},
+		{
+			name: "Failed to parse int64, expect default value",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_INT64_KEY", "bad"))
+			},
+			args: args{
+				key:          "TEST_INT64_KEY",
+				defaultValue: 10,
+			},
+			want: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepareEnv != nil {
+				tt.prepareEnv(t)
+			}
+
+			got := Int64(tt.args.key, tt.args.defaultValue)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestInt(t *testing.T) {
+	type args struct {
+		key          string
+		defaultValue int
+	}
+
+	tests := []struct {
+		name       string
+		prepareEnv func(t *testing.T)
+		args       args
+		want       int
+	}{
+		{
+			name: "Env value",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_INT_KEY", "123"))
+			},
+			args: args{
+				key:          "TEST_INT_KEY",
+				defaultValue: 1,
+			},
+			want: 123,
+		},
+		{
+			name: "Default value for missing key",
+			args: args{
+				key:          "NOT_EXISTENT",
+				defaultValue: 7,
+			},
+			want: 7,
+		},
+		{
+			name: "Failed to parse int, expect default value",
+			prepareEnv: func(t *testing.T) {
+				assert.NoError(t, os.Setenv("TEST_INT_KEY", "bad"))
+			},
+			args: args{
+				key:          "TEST_INT_KEY",
+				defaultValue: 10,
+			},
+			want: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.prepareEnv != nil {
+				tt.prepareEnv(t)
+			}
+
+			got := Int(tt.args.key, tt.args.defaultValue)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

@@ -82,6 +82,8 @@ issues:
         - gocyclo
         - nlreturn
         - wsl
+        - revive
+        - staticcheck
     - path: scripts
       linters:
         - forbidigo
