@@ -117,6 +117,17 @@ func main() {
 
 	// Create a SOCKS5 server
 	server := socks5.NewServer(socks5Opts...)
+	proxyListener, err := net.Listen("tcp", ":8000")
+	if err != nil {
+		slog.LogAttrs(
+			ctx,
+			slog.LevelError,
+			"failed to create socks5 listener",
+			slog.String(log.FieldError, err.Error()),
+		)
+
+		return
+	}
 
 	// Create telegram bot
 	b, err := initBot(redisCli)
@@ -158,9 +169,13 @@ func main() {
 	})
 
 	g.Go(func() error {
-		// Create SOCKS5 proxy on localhost port 8000
-		// TODO: here we can add graceful shutdown by calling method Serve with custom listener
-		return server.ListenAndServe("tcp", ":8000")
+		// Serve via external listener so we can stop accept loop on shutdown.
+		err := server.Serve(proxyListener)
+		if err != nil && !errors.Is(err, net.ErrClosed) {
+			return err
+		}
+
+		return nil
 	})
 
 	// Poll bot updates
@@ -178,7 +193,11 @@ func main() {
 
 	g.Go(func() error {
 		<-ctx.Done()
+
 		b.Stop()
+		if err := proxyListener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+			return err
+		}
 
 		return scheduler.Shutdown()
 	})
