@@ -25,7 +25,7 @@ Additional features:
 - [ ] Config for disabling Telegram bot in app
 - [ ] Prometheus metrics export
 - [ ] Publishing proxy app as a separate image to Docker Hub
-- [ ] Generating deeplink for setting socks5 proxy in Telegram: https://core.telegram.org/api/links#socks5-proxy-links
+- [x] Generating deeplink for setting socks5 proxy in Telegram: https://core.telegram.org/api/links#socks5-proxy-links
 
 ## Load testing SOCKS5 proxy locally
 

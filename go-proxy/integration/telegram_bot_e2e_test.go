@@ -110,6 +110,9 @@ func TestTelegramBotE2E_AllCommandsAndTextMessages(t *testing.T) {
 	if !strings.Contains(reply.Text, "proxy.example.com") || !strings.Contains(reply.Text, "new-user") {
 		t.Fatalf("connection details are missing in create reply: %q", reply.Text)
 	}
+	if !strings.Contains(reply.Text, "tg://socks?server=proxy.example.com") {
+		t.Fatalf("telegram deeplink is missing in create reply: %q", reply.Text)
+	}
 
 	storedHash, err := redis.HGet(context.Background(), redisUserAuthKey, "new-user")
 	if err != nil {

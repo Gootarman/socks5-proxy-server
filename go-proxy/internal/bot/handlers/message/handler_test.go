@@ -278,7 +278,33 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 		assert.Contains(t, c.sendCall[0].msg, "<b>port:</b> 1080")
 		assert.Contains(t, c.sendCall[0].msg, "<b>username:</b> proxy-user")
 		assert.Contains(t, c.sendCall[0].msg, "<b>password:</b> pass")
+		assert.Contains(
+			t,
+			c.sendCall[0].msg,
+			"<b>telegram deeplink:</b> tg://socks?server=proxy.example.com"+
+				"&amp;port=1080&amp;user=proxy-user&amp;pass=pass",
+		)
 	})
+}
+
+func TestBuildTelegramSocks5Deeplink(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(
+		t,
+		"tg://socks?server=proxy.example.com&port=1080&user=alice&pass=qwerty",
+		buildTelegramSocks5Deeplink("https://proxy.example.com/", 1080, "alice", "qwerty"),
+	)
+	assert.Equal(
+		t,
+		"tg://socks?server=proxy.example.com&port=1080&user=alice&pass=qwerty",
+		buildTelegramSocks5Deeplink("https://proxy.example.com:8443/path/", 1080, "alice", "qwerty"),
+	)
+	assert.Equal(
+		t,
+		"tg://socks?server=proxy.example.com&port=1080&user=user+name&pass=p%40ss%26word",
+		buildTelegramSocks5Deeplink("proxy.example.com", 1080, "user name", "p@ss&word"),
+	)
 }
 
 func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {

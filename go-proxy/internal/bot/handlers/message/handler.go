@@ -3,6 +3,8 @@ package message
 import (
 	"context"
 	"fmt"
+	"html"
+	"net/url"
 	"strings"
 
 	tele "gopkg.in/telebot.v3"
@@ -97,13 +99,21 @@ func (h *Handler) Handle(c tele.Context) error {
 			return err
 		}
 
+		publicHost := store.CleanPublicHost(config.PublicURL())
+		telegramDeeplink := buildTelegramSocks5Deeplink(config.PublicURL(), config.AppPort(), proxyUsername, text)
+
 		message := fmt.Sprintf(
 			"User created. Send these settings to the user:\n\n"+
-				"<b>host:</b> %s\n<b>port:</b> %d\n<b>username:</b> %s\n<b>password:</b> %s",
-			store.CleanPublicHost(config.PublicURL()),
+				"<b>host:</b> %s\n"+
+				"<b>port:</b> %d\n"+
+				"<b>username:</b> %s\n"+
+				"<b>password:</b> %s\n"+
+				"<b>telegram deeplink:</b> %s",
+			html.EscapeString(publicHost),
 			config.AppPort(),
-			proxyUsername,
-			text,
+			html.EscapeString(proxyUsername),
+			html.EscapeString(text),
+			html.EscapeString(telegramDeeplink),
 		)
 
 		opts := &tele.SendOptions{
@@ -138,4 +148,37 @@ func (h *Handler) Handle(c tele.Context) error {
 
 func generateSuggestedPassword() (string, error) {
 	return generatepass.Generate(10)
+}
+
+func buildTelegramSocks5Deeplink(publicURL string, port int, username, password string) string {
+	server := telegramSocksServer(publicURL)
+
+	return fmt.Sprintf(
+		"tg://socks?server=%s&port=%d&user=%s&pass=%s",
+		url.QueryEscape(server),
+		port,
+		url.QueryEscape(username),
+		url.QueryEscape(password),
+	)
+}
+
+func telegramSocksServer(publicURL string) string {
+	normalized := strings.TrimSpace(publicURL)
+	if normalized == "" {
+		return ""
+	}
+
+	if !strings.Contains(normalized, "://") {
+		normalized = "https://" + normalized
+	}
+
+	parsedURL, err := url.Parse(normalized)
+	if err == nil && parsedURL.Hostname() != "" {
+		return parsedURL.Hostname()
+	}
+
+	cleanHost := store.CleanPublicHost(publicURL)
+	server, _, _ := strings.Cut(cleanHost, "/")
+
+	return server
 }
