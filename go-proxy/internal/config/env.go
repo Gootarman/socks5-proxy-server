@@ -77,3 +77,23 @@ func TelegramWebhookTLSKeyPath() string {
 func AppPort() int {
 	return env.Int("APP_PORT", 54321)
 }
+
+func MetricsEnabled() bool {
+	return env.Bool("METRICS_ENABLED", false)
+}
+
+func MetricsPort() int {
+	return env.Int("METRICS_PORT", 9100)
+}
+
+func MetricsAuthEnabled() bool {
+	return env.Bool("METRICS_AUTH_ENABLED", false)
+}
+
+func MetricsAuthUsername() string {
+	return env.String("METRICS_AUTH_USERNAME", "")
+}
+
+func MetricsAuthPassword() string {
+	return env.String("METRICS_AUTH_PASSWORD", "")
+}

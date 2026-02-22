@@ -83,6 +83,11 @@ func TestOtherGetters(t *testing.T) {
 		t.Setenv("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", "")
 		t.Setenv("PUBLIC_URL", "")
 		t.Setenv("APP_PORT", "")
+		t.Setenv("METRICS_ENABLED", "")
+		t.Setenv("METRICS_PORT", "")
+		t.Setenv("METRICS_AUTH_ENABLED", "")
+		t.Setenv("METRICS_AUTH_USERNAME", "")
+		t.Setenv("METRICS_AUTH_PASSWORD", "")
 
 		assert.Equal(t, "", RedisHost())
 		assert.Equal(t, 6379, RedisPort())
@@ -97,6 +102,11 @@ func TestOtherGetters(t *testing.T) {
 		assert.Equal(t, time.Minute, TelegramUpdateProcessingTimeout())
 		assert.Equal(t, "", PublicURL())
 		assert.Equal(t, 54321, AppPort())
+		assert.False(t, MetricsEnabled())
+		assert.Equal(t, 9100, MetricsPort())
+		assert.False(t, MetricsAuthEnabled())
+		assert.Equal(t, "", MetricsAuthUsername())
+		assert.Equal(t, "", MetricsAuthPassword())
 	})
 
 	t.Run("env values", func(t *testing.T) {
@@ -113,6 +123,11 @@ func TestOtherGetters(t *testing.T) {
 		t.Setenv("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", "90s")
 		t.Setenv("PUBLIC_URL", "https://example.com")
 		t.Setenv("APP_PORT", "1080")
+		t.Setenv("METRICS_ENABLED", "true")
+		t.Setenv("METRICS_PORT", "9190")
+		t.Setenv("METRICS_AUTH_ENABLED", "true")
+		t.Setenv("METRICS_AUTH_USERNAME", "metrics")
+		t.Setenv("METRICS_AUTH_PASSWORD", "secret")
 
 		assert.Equal(t, "redis", RedisHost())
 		assert.Equal(t, 6380, RedisPort())
@@ -127,5 +142,10 @@ func TestOtherGetters(t *testing.T) {
 		assert.Equal(t, 90*time.Second, TelegramUpdateProcessingTimeout())
 		assert.Equal(t, "https://example.com", PublicURL())
 		assert.Equal(t, 1080, AppPort())
+		assert.True(t, MetricsEnabled())
+		assert.Equal(t, 9190, MetricsPort())
+		assert.True(t, MetricsAuthEnabled())
+		assert.Equal(t, "metrics", MetricsAuthUsername())
+		assert.Equal(t, "secret", MetricsAuthPassword())
 	})
 }

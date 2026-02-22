@@ -1,14 +1,27 @@
 package proxy
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
 type usageTrackedConn struct {
 	net.Conn
-	onData func(dataLen int64)
+	onData      func(dataLen int64)
+	onClose     func()
+	onCloseOnce sync.Once
 }
 
 func NewUsageTrackedConn(conn net.Conn, onData func(dataLen int64)) net.Conn {
-	return &usageTrackedConn{Conn: conn, onData: onData}
+	return NewUsageTrackedConnWithClose(conn, onData, nil)
+}
+
+func NewUsageTrackedConnWithClose(conn net.Conn, onData func(dataLen int64), onClose func()) net.Conn {
+	return &usageTrackedConn{
+		Conn:    conn,
+		onData:  onData,
+		onClose: onClose,
+	}
 }
 
 func (c *usageTrackedConn) Read(p []byte) (int, error) {
@@ -27,4 +40,15 @@ func (c *usageTrackedConn) Write(p []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+func (c *usageTrackedConn) Close() error {
+	err := c.Conn.Close()
+	c.onCloseOnce.Do(func() {
+		if c.onClose != nil {
+			c.onClose()
+		}
+	})
+
+	return err
 }

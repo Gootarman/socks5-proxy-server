@@ -74,3 +74,27 @@ func TestUsageTrackedConn_Write(t *testing.T) {
 		t.Fatalf("onData called with %d bytes, want %d", called, expected)
 	}
 }
+
+func TestUsageTrackedConn_Close(t *testing.T) {
+	t.Parallel()
+
+	client, server := net.Pipe()
+	t.Cleanup(func() {
+		_ = server.Close()
+	})
+
+	closedCalled := 0
+	conn := NewUsageTrackedConnWithClose(client, nil, func() {
+		closedCalled++
+	})
+
+	if err := conn.Close(); err != nil {
+		t.Fatalf("Close() unexpected error: %v", err)
+	}
+
+	_ = conn.Close()
+
+	if closedCalled != 1 {
+		t.Fatalf("onClose called %d times, want 1", closedCalled)
+	}
+}

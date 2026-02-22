@@ -33,6 +33,7 @@ import (
 	"github.com/nskondratev/socks5-proxy-server/internal/cli"
 	"github.com/nskondratev/socks5-proxy-server/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/internal/log"
+	"github.com/nskondratev/socks5-proxy-server/internal/metrics"
 	"github.com/nskondratev/socks5-proxy-server/internal/password"
 	"github.com/nskondratev/socks5-proxy-server/internal/redis"
 	"github.com/nskondratev/socks5-proxy-server/internal/services/admin"
@@ -69,6 +70,23 @@ func main() {
 		config.RedisUsageUpdatesQueueSize(),
 	)
 
+	metricsService, err := metrics.New(metrics.Config{
+		Enabled:      config.MetricsEnabled(),
+		Port:         config.MetricsPort(),
+		AuthEnabled:  config.MetricsAuthEnabled(),
+		AuthUsername: config.MetricsAuthUsername(),
+		AuthPassword: config.MetricsAuthPassword(),
+	})
+	if err != nil {
+		log.Error(
+			ctx,
+			"failed to init metrics service",
+			log.String(log.FieldError, err.Error()),
+		)
+
+		return
+	}
+
 	dialer := &net.Dialer{}
 
 	socks5Opts := []socks5.Option{
@@ -78,29 +96,41 @@ func main() {
 				return nil, err
 			}
 
-			username, ok := getUsernameFromRequest(request)
-			if !ok {
-				return conn, nil
+			metricsService.ObserveConnectionOpened()
+			onClose := func() {
+				metricsService.ObserveConnectionClosed()
 			}
 
-			return proxy.NewUsageTrackedConn(conn, func(dataLen int64) {
+			username, ok := getUsernameFromRequest(request)
+			if !ok {
+				return proxy.NewUsageTrackedConnWithClose(conn, nil, onClose), nil
+			}
+
+			return proxy.NewUsageTrackedConnWithClose(conn, func(dataLen int64) {
+				metricsService.ObserveProxyTrafficBytes(dataLen)
+				metricsService.ObserveProxyTrafficBytesByUsername(username, dataLen)
+
 				if queued := updatesManager.EnqueueUsageUpdate(username, dataLen); !queued {
+					metricsService.ObserveDroppedRedisUpdate(metrics.QueueUsage)
+
 					log.Warn(
 						ctx,
 						"failed to enqueue data usage update for user",
 						log.String(log.FieldUsername, username),
 					)
 				}
-			}), nil
+			}, onClose), nil
 		}),
 	}
 
 	if config.RequireAuth() {
 		authCredentialValidator := proxy.NewAuthWithCache(
 			cache.NewExpirableLRU[proxy.AuthCacheKey, bool](config.AuthCacheMaxSize(), config.AuthCacheTTL()),
-			proxy.NewAuth(usersService, passwords),
+			metricsService.InstrumentAuthValidator(proxy.NewAuth(usersService, passwords)),
 			func(user string) {
 				if queued := updatesManager.EnqueueLastAuthDateUpdate(user); !queued {
+					metricsService.ObserveDroppedRedisUpdate(metrics.QueueAuth)
+
 					log.Warn(
 						ctx,
 						"failed to enqueue auth date update for user",
@@ -163,6 +193,19 @@ func main() {
 
 		return updatesManager.Run(ctx)
 	})
+
+	if metricsService.Enabled() {
+		g.Go(func() error {
+			log.Info(
+				ctx,
+				"start metrics server",
+				log.Int("port", config.MetricsPort()),
+				log.Bool("auth_enabled", config.MetricsAuthEnabled()),
+			)
+
+			return metricsService.Run(ctx)
+		})
+	}
 
 	g.Go(func() error {
 		// Serve via external listener so we can stop accept loop on shutdown.

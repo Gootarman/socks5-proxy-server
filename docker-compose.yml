@@ -42,6 +42,12 @@ services:
       AUTH_CACHE_TTL: ${AUTH_CACHE_TTL}
       REDIS_AUTH_UPDATES_QUEUE_SIZE: ${REDIS_AUTH_UPDATES_QUEUE_SIZE}
       REDIS_USAGE_UPDATES_QUEUE_SIZE: ${REDIS_USAGE_UPDATES_QUEUE_SIZE}
+      # Prometheus metrics settings
+      METRICS_ENABLED: ${METRICS_ENABLED}
+      METRICS_PORT: ${METRICS_PORT}
+      METRICS_AUTH_ENABLED: ${METRICS_AUTH_ENABLED}
+      METRICS_AUTH_USERNAME: ${METRICS_AUTH_USERNAME}
+      METRICS_AUTH_PASSWORD: ${METRICS_AUTH_PASSWORD}
       # Telegram bot settings
       TELEGRAM_API_TOKEN: ${TELEGRAM_API_TOKEN}
       TELEGRAM_USE_WEBHOOKS: ${TELEGRAM_USE_WEBHOOKS}
@@ -53,9 +59,11 @@ services:
     ports:
       - "${APP_PORT}:8000"
       - "${BOT_APP_PORT}:${BOT_APP_PORT}"
+      - "${METRICS_PORT}:${METRICS_PORT}"
     expose:
       - "${APP_PORT}/tcp"
       - "${BOT_APP_PORT}/tcp"
+      - "${METRICS_PORT}/tcp"
     restart: always
 
   # telegram_bot:
