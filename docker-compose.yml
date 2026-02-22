@@ -8,7 +8,7 @@ services:
   proxy:
     depends_on:
       - redis
-    build: ./proxy
+    image: ${PROXY_IMAGE:-ghcr.io/nskondratev/socks5-proxy-server-proxy:latest}
     environment:
       # App settings
       LOG_LEVEL: ${LOG_LEVEL}

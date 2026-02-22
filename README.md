@@ -5,10 +5,27 @@
 ## How to run
 - Copy *.env.example* file: `cp .env.example .env`
 - Fill in configuration: `nano .env`. Fields:
+  - **PROXY_IMAGE** - Docker image with prebuilt proxy binary (default in example: `ghcr.io/your-org/socks5-proxy-server-proxy:latest`),
   - **APP_PORT** - proxy server port (default: 54321),
   - **LOG_LEVEL** - log level (default: INFO),
   - **REQUIRE_AUTH** - if set to 1, anonymous users are not allowed.
-- Start application: `docker compose up -d`
+- Pull and start application: `docker compose pull && docker compose up -d`
+
+## Release and deploy (prebuilt proxy binary)
+- Create and push a release tag:
+  - `git tag v1.0.0`
+  - `git push origin v1.0.0`
+- GitHub Actions workflow `proxy release image` will:
+  - run `go test ./...` in `proxy`,
+  - run lint checks in `proxy`,
+  - run `make build` in `proxy` to produce `proxy/dist/proxy`,
+  - build Docker image from `proxy/Dockerfile` (using prebuilt `proxy/dist/proxy`),
+  - publish image to GHCR: `ghcr.io/<owner>/socks5-proxy-server-proxy:v1.0.0`.
+- On server set `PROXY_IMAGE` in `.env`, for example:
+  - `PROXY_IMAGE=ghcr.io/<owner>/socks5-proxy-server-proxy:v1.0.0`
+- Deploy update:
+  - `docker compose pull`
+  - `docker compose up -d`
 
 ## CLI commands
 In all commands you need to call js-script in app docker container.  
@@ -65,4 +82,3 @@ docker exec -it socks5-proxy-server-telegram_bot-1 sh -c 'exec node scripts/dele
 - `/delete_user` - delete proxy user
 - `/get_users` - get list of proxy users
 - `/generate_pass [length]` - generate random password with specified length (10 by default)
-
