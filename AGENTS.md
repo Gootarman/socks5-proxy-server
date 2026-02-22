@@ -1,11 +1,11 @@
 # AGENTS.md
 
 ## Project overview
-- This repo contains multiple services: `go-proxy` (Go SOCKS5 proxy), `proxy` (Node.js app), and `telegram-bot` (Node.js bot).
+- This repo contains a Go service: `proxy` (SOCKS5 proxy with admin bot features).
 - `docker-compose.yml` wires services together with Redis.
 
 ## Service capabilities
-### proxy (Node.js SOCKS5 server)
+### proxy (Go SOCKS5 server)
 - Starts a SOCKS5 proxy with optional authentication when `REQUIRE_AUTH=1`.
 - Validates credentials against Redis (`REDIS.AUTH_USER_KEY`), using bcrypt to compare passwords.
 - Tracks per-user data usage in Redis on each proxied data event.
@@ -20,9 +20,9 @@
 - Generates passwords on demand and sends connection details (host/port/credentials).
 
 ## Common commands
-- Go proxy tests: `cd go-proxy && go test ./...`
-- Also call linters check after tests: `cd go-proxy && make lint`
-- Build Go binary for Docker (expected at `go-proxy/dist/proxy`): `cd go-proxy && make build` (or your local build flow)
+- Go proxy tests: `cd proxy && go test ./...`
+- Also call linters check after tests: `cd proxy && make lint`
+- Build Go binary for Docker (expected at `proxy/dist/proxy`): `cd proxy && make build` (or your local build flow)
 - Docker compose: `docker compose up --build`
 - Always remove directiories .gocache and .golangci-lint-cache if you create theme after finishing task
 
@@ -32,5 +32,5 @@
 - Keep configuration in env vars; see `.env` and `.env.example`.
 
 ## Notes for Docker
-- `go-proxy/Dockerfile` expects a prebuilt binary at `go-proxy/dist/proxy`.
+- `proxy/Dockerfile` expects a prebuilt binary at `proxy/dist/proxy`.
 - Redis is required; services should point to `REDIS_HOST=redis`.

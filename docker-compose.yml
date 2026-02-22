@@ -5,10 +5,10 @@ services:
       - ./data/redis:/data
     restart: always
 
-  go_proxy:
+  proxy:
     depends_on:
       - redis
-    build: ./go-proxy
+    build: ./proxy
     environment:
       # App settings
       LOG_LEVEL: ${LOG_LEVEL}
