@@ -29,8 +29,8 @@ func (h *Handler) Handle(c tele.Context) error {
 	}
 
 	ctx := bot.GetContext(c)
-	stats, err := h.store.GetUsersStats(ctx)
 
+	stats, err := h.store.GetUsersStats(ctx)
 	if err != nil {
 		return err
 	}

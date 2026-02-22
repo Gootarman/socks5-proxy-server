@@ -27,7 +27,7 @@ type Handler struct{ store storeI }
 
 func New(store storeI) *Handler { return &Handler{store: store} }
 
-//nolint:gocognit,gocyclo,cyclop,funlen,wsl // State machine handler is intentionally centralized.
+//nolint:gocognit,gocyclo,cyclop,funlen,wsl_v5 // State machine handler is intentionally centralized.
 func (h *Handler) Handle(c tele.Context) error {
 	if strings.HasPrefix(strings.TrimSpace(c.Text()), "/") {
 		return nil

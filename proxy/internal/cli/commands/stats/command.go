@@ -37,6 +37,7 @@ func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
+//nolint:gocognit,gocyclo,cyclop // Printing formatted stats table requires a few branching steps.
 func (h *CommandHandler) Handle(ctx context.Context) error {
 	if h.redis == nil {
 		return fmt.Errorf("[users-stats] redis dependency is not configured")
@@ -72,8 +73,12 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return stats[i].Usage > stats[j].Usage
 	})
 
+	header := "#\tUsername\tData usage (in bytes)\tData usage (human readable)\tLast login"
+
 	tw := tabwriter.NewWriter(h.out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "#\tUsername\tData usage (in bytes)\tData usage (human readable)\tLast login")
+	if _, err = fmt.Fprintln(tw, header); err != nil {
+		return fmt.Errorf("[users-stats] failed to print header: %w", err)
+	}
 
 	for i, stat := range stats {
 		loginDate := lastLogin[stat.Username]
@@ -81,7 +86,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 			loginDate = "-"
 		}
 
-		fmt.Fprintf(
+		if _, err = fmt.Fprintf(
 			tw,
 			"%d\t%s\t%d\t%s\t%s\n",
 			i+1,
@@ -89,7 +94,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 			stat.Usage,
 			formatBytes(stat.Usage),
 			loginDate,
-		)
+		); err != nil {
+			return fmt.Errorf("[users-stats] failed to print row: %w", err)
+		}
 	}
 
 	if err = tw.Flush(); err != nil {

@@ -97,6 +97,7 @@ func main() {
 			}
 
 			metricsService.ObserveConnectionOpened()
+
 			onClose := func() {
 				metricsService.ObserveConnectionClosed()
 			}
@@ -145,8 +146,9 @@ func main() {
 
 	// Create a SOCKS5 server
 	server := socks5.NewServer(socks5Opts...)
-	//nolint:gosec // Binding on all interfaces is expected for the proxy service.
-	proxyListener, err := net.Listen("tcp", ":8000")
+	listenCfg := net.ListenConfig{}
+
+	proxyListener, err := listenCfg.Listen(ctx, "tcp", ":8000")
 	if err != nil {
 		log.Error(
 			ctx,

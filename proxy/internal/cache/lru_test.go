@@ -39,6 +39,7 @@ func TestExpirableLRU_Expires(t *testing.T) {
 
 func stopExpirableLRUGC[K comparable, V any](c *ExpirableLRU[K, V]) {
 	doneField := reflect.ValueOf(c.cache).Elem().FieldByName("done")
+	//nolint:gosec // Tests intentionally access an unexported field to stop cache GC goroutine.
 	doneCh := *(*chan struct{})(unsafe.Pointer(doneField.UnsafeAddr()))
 	close(doneCh)
 }

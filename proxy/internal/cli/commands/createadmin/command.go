@@ -45,7 +45,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[create-admin] admin service dependency is not configured")
 	}
 
-	fmt.Fprint(h.out, "Input admin username and press Enter: ")
+	if _, err := fmt.Fprint(h.out, "Input admin username and press Enter: "); err != nil {
+		return fmt.Errorf("[create-admin] failed to write prompt: %w", err)
+	}
 
 	username, err := h.readInputLine()
 	if err != nil {
@@ -56,7 +58,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[create-admin] failed to create admin: %w", err)
 	}
 
-	fmt.Fprintln(h.out, "Admin successfully created.")
+	if _, err = fmt.Fprintln(h.out, "Admin successfully created."); err != nil {
+		return fmt.Errorf("[create-admin] failed to write success message: %w", err)
+	}
 
 	return nil
 }

@@ -40,13 +40,15 @@ func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
-//nolint:wsl // CLI prompt flow is kept linear for readability.
 func (h *CommandHandler) Handle(ctx context.Context) error {
 	if h.adminService == nil {
 		return fmt.Errorf("[delete-admin] admin service dependency is not configured")
 	}
 
-	fmt.Fprint(h.out, "Input admin username and press Enter: ")
+	if _, err := fmt.Fprint(h.out, "Input admin username and press Enter: "); err != nil {
+		return fmt.Errorf("[delete-admin] failed to write prompt: %w", err)
+	}
+
 	username, err := h.readInputLine()
 	if err != nil {
 		return fmt.Errorf("[delete-admin] failed to read username: %w", err)
@@ -56,7 +58,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-admin] failed to delete admin: %w", err)
 	}
 
-	fmt.Fprintln(h.out, "Admin successfully deleted.")
+	if _, err = fmt.Fprintln(h.out, "Admin successfully deleted."); err != nil {
+		return fmt.Errorf("[delete-admin] failed to write success message: %w", err)
+	}
 
 	return nil
 }

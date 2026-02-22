@@ -45,20 +45,25 @@ func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
-//nolint:wsl // CLI prompt flow is kept linear for readability.
+//nolint:cyclop,gocyclo // CLI prompt flow is kept linear for readability.
 func (h *CommandHandler) Handle(ctx context.Context) error {
 	if h.redis == nil {
 		return fmt.Errorf("[create-user] redis dependency is not configured")
 	}
 
-	fmt.Fprint(h.out, "Input username and press Enter: ")
+	if _, err := fmt.Fprint(h.out, "Input username and press Enter: "); err != nil {
+		return fmt.Errorf("[create-user] failed to write username prompt: %w", err)
+	}
 
 	username, err := h.readInputLine()
 	if err != nil {
 		return fmt.Errorf("[create-user] failed to read username: %w", err)
 	}
 
-	fmt.Fprint(h.out, "Input password and press Enter to create new user: ")
+	if _, err = fmt.Fprint(h.out, "Input password and press Enter to create new user: "); err != nil {
+		return fmt.Errorf("[create-user] failed to write password prompt: %w", err)
+	}
+
 	password, err := h.readInputLine()
 	if err != nil {
 		return fmt.Errorf("[create-user] failed to read password: %w", err)
@@ -79,7 +84,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[create-user] failed to create user: %w", err)
 	}
 
-	fmt.Fprintln(h.out, "User successfully created.")
+	if _, err = fmt.Fprintln(h.out, "User successfully created."); err != nil {
+		return fmt.Errorf("[create-user] failed to write success message: %w", err)
+	}
 
 	return nil
 }

@@ -49,7 +49,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-user] redis dependency is not configured")
 	}
 
-	fmt.Fprint(h.out, "Input username and press Enter: ")
+	if _, err := fmt.Fprint(h.out, "Input username and press Enter: "); err != nil {
+		return fmt.Errorf("[delete-user] failed to write prompt: %w", err)
+	}
 
 	username, err := h.readInputLine()
 	if err != nil {
@@ -66,7 +68,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-user] failed to delete user: %w", err)
 	}
 
-	fmt.Fprintln(h.out, "User successfully deleted.")
+	if _, err = fmt.Fprintln(h.out, "User successfully deleted."); err != nil {
+		return fmt.Errorf("[delete-user] failed to write success message: %w", err)
+	}
 
 	return nil
 }
