@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -86,11 +85,10 @@ func main() {
 
 			return proxy.NewUsageTrackedConn(conn, func(dataLen int64) {
 				if queued := updatesManager.EnqueueUsageUpdate(username, dataLen); !queued {
-					slog.LogAttrs(
+					log.Warn(
 						ctx,
-						slog.LevelWarn,
 						"failed to enqueue data usage update for user",
-						slog.String(log.FieldUsername, username),
+						log.String(log.FieldUsername, username),
 					)
 				}
 			}), nil
@@ -103,11 +101,10 @@ func main() {
 			proxy.NewAuth(usersService, passwords),
 			func(user string) {
 				if queued := updatesManager.EnqueueLastAuthDateUpdate(user); !queued {
-					slog.LogAttrs(
+					log.Warn(
 						ctx,
-						slog.LevelWarn,
 						"failed to enqueue auth date update for user",
-						slog.String(log.FieldUsername, user),
+						log.String(log.FieldUsername, user),
 					)
 				}
 			},
@@ -121,11 +118,10 @@ func main() {
 	//nolint:gosec // Binding on all interfaces is expected for the proxy service.
 	proxyListener, err := net.Listen("tcp", ":8000")
 	if err != nil {
-		slog.LogAttrs(
+		log.Error(
 			ctx,
-			slog.LevelError,
 			"failed to create socks5 listener",
-			slog.String(log.FieldError, err.Error()),
+			log.String(log.FieldError, err.Error()),
 		)
 
 		return
@@ -134,11 +130,10 @@ func main() {
 	// Create telegram bot
 	b, err := initBot(redisCli)
 	if err != nil {
-		slog.LogAttrs(
+		log.Error(
 			ctx,
-			slog.LevelError,
 			"failed to create telegram bot",
-			slog.String(log.FieldError, err.Error()),
+			log.String(log.FieldError, err.Error()),
 		)
 
 		return
@@ -146,11 +141,10 @@ func main() {
 
 	scheduler, err := initSchedulerForClearingUsageStats(ctx, usersService)
 	if err != nil {
-		slog.LogAttrs(
+		log.Error(
 			ctx,
-			slog.LevelError,
 			"failed to create scheduler for clearing usage stats",
-			slog.String(log.FieldError, err.Error()),
+			log.String(log.FieldError, err.Error()),
 		)
 
 		return
@@ -165,7 +159,7 @@ func main() {
 	})
 
 	g.Go(func() error {
-		slog.LogAttrs(ctx, slog.LevelInfo, "start redis updates manager")
+		log.Info(ctx, "start redis updates manager")
 
 		return updatesManager.Run(ctx)
 	})
@@ -183,9 +177,9 @@ func main() {
 	// Poll bot updates
 	g.Go(func() error {
 		if config.TelegramUseWebHooks() {
-			slog.LogAttrs(ctx, slog.LevelInfo, "start receiving updates via webhook")
+			log.Info(ctx, "start receiving updates via webhook")
 		} else {
-			slog.LogAttrs(ctx, slog.LevelInfo, "start polling updates")
+			log.Info(ctx, "start polling updates")
 		}
 
 		b.Start()
@@ -206,17 +200,16 @@ func main() {
 	})
 
 	if err = g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		slog.LogAttrs(
+		log.Error(
 			ctx,
-			slog.LevelError,
 			"errgroup finished with error",
-			slog.String(log.FieldError, err.Error()),
+			log.String(log.FieldError, err.Error()),
 		)
 
 		return
 	}
 
-	slog.LogAttrs(ctx, slog.LevelInfo, "exit from app")
+	log.Info(ctx, "exit from app")
 }
 
 func getUsernameFromRequest(request *socks5.Request) (string, bool) {
@@ -342,12 +335,10 @@ func initSchedulerForClearingUsageStats(ctx context.Context, usersService *users
 		gocron.CronJob("0 0 1 * *", false),
 		gocron.NewTask(func(ctx context.Context) {
 			if err := usersService.ClearDataUsage(ctx); err != nil {
-				// TODO: написать чуть более удобную обёртку для работы с логами
-				slog.LogAttrs(
+				log.Error(
 					ctx,
-					slog.LevelError,
 					"failed to clear data usage",
-					slog.String(log.FieldError, err.Error()),
+					log.String(log.FieldError, err.Error()),
 				)
 			}
 		}),

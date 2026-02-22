@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"log/slog"
 	"os"
 
 	"github.com/nskondratev/socks5-proxy-server/internal/cli/commands/createadmin"
@@ -42,11 +41,10 @@ func HandleCLICommand(ctx context.Context, deps *CommandsDeps) (handled bool) {
 	handled = true
 	commandName := os.Args[1]
 
-	slog.LogAttrs(
+	log.Info(
 		ctx,
-		slog.LevelInfo,
 		"in CLI command mode, process command",
-		slog.String("command", commandName),
+		log.String("command", commandName),
 	)
 
 	adminService := admin.New(deps.Redis)
@@ -62,12 +60,11 @@ func HandleCLICommand(ctx context.Context, deps *CommandsDeps) (handled bool) {
 	for i := range commands {
 		if commands[i].CanHandle(ctx, commandName) {
 			if err := commands[i].Handle(ctx); err != nil {
-				slog.LogAttrs(
+				log.Error(
 					ctx,
-					slog.LevelError,
 					"failed to handle CLI command",
-					slog.String("command", commandName),
-					slog.String(log.FieldError, err.Error()),
+					log.String("command", commandName),
+					log.String(log.FieldError, err.Error()),
 				)
 
 				return handled
@@ -77,11 +74,10 @@ func HandleCLICommand(ctx context.Context, deps *CommandsDeps) (handled bool) {
 		}
 	}
 
-	slog.LogAttrs(
+	log.Warn(
 		ctx,
-		slog.LevelWarn,
 		"unknown CLI command",
-		slog.String("command", commandName),
+		log.String("command", commandName),
 	)
 
 	return handled

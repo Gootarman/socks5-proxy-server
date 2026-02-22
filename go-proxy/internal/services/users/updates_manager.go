@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/nskondratev/socks5-proxy-server/internal/log"
 )
@@ -69,22 +68,20 @@ func (m *UpdatesManager) Run(ctx context.Context) error {
 			return nil
 		case job := <-m.authUpdates:
 			if err := m.updater.UpdateLastAuthDate(ctx, job.user); err != nil {
-				slog.LogAttrs(
+				log.Warn(
 					ctx,
-					slog.LevelWarn,
 					"failed to update auth date for user",
-					slog.String(log.FieldUsername, job.user),
-					slog.String(log.FieldError, err.Error()),
+					log.String(log.FieldUsername, job.user),
+					log.String(log.FieldError, err.Error()),
 				)
 			}
 		case job := <-m.usageUpdates:
 			if err := m.updater.IncreaseDataUsage(ctx, job.user, job.dataLen); err != nil {
-				slog.LogAttrs(
+				log.Warn(
 					ctx,
-					slog.LevelWarn,
 					"failed to increase data usage for user",
-					slog.String(log.FieldUsername, job.user),
-					slog.String(log.FieldError, err.Error()),
+					log.String(log.FieldUsername, job.user),
+					log.String(log.FieldError, err.Error()),
 				)
 			}
 		}

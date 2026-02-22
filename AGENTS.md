@@ -24,6 +24,7 @@
 - Also call linters check after tests: `cd go-proxy && make lint`
 - Build Go binary for Docker (expected at `go-proxy/dist/proxy`): `cd go-proxy && make build` (or your local build flow)
 - Docker compose: `docker compose up --build`
+- Always remove directiories .gocache and .golangci-lint-cache if you create theme after finishing task
 
 ## Conventions
 - Prefer small, focused changes; keep Go code idiomatic and Node code consistent with existing style.
