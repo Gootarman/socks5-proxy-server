@@ -46,6 +46,10 @@ func TelegramAPIToken() string {
 	return env.String("TELEGRAM_API_TOKEN", "")
 }
 
+func TelegramBotEnabled() bool {
+	return env.Bool("TELEGRAM_BOT_ENABLED", true)
+}
+
 func TelegramUpdateProcessingTimeout() time.Duration {
 	return env.Duration("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", time.Minute)
 }

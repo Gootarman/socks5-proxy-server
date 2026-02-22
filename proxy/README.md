@@ -22,7 +22,7 @@ Additional features:
 - [x] Graceful shutdown
 - [x] Add different levels tests
 - [x] Linting and testing via Github Actions
-- [ ] Config for disabling Telegram bot in app
+- [x] Config for disabling Telegram bot in app
 - [x] Prometheus metrics export
 - [ ] Publishing proxy app as a separate image to Docker Hub
 - [x] Generating deeplink for setting socks5 proxy in Telegram: https://core.telegram.org/api/links#socks5-proxy-links
@@ -68,6 +68,7 @@ These files allow you to track performance dynamics over multiple runs.
 
 If the bot works in webhook mode (`TELEGRAM_USE_WEBHOOKS=1`), you can optionally enable local TLS using a self-signed certificate:
 
+- `TELEGRAM_BOT_ENABLED` — enable/disable bot startup (`1` by default).
 - `TELEGRAM_WEBHOOK_TLS_CERT_PATH` — path to certificate file.
 - `TELEGRAM_WEBHOOK_TLS_KEY_PATH` — path to private key file.
 

@@ -158,15 +158,21 @@ func main() {
 	}
 
 	// Create telegram bot
-	b, err := initBot(redisCli)
-	if err != nil {
-		log.Error(
-			ctx,
-			"failed to create telegram bot",
-			log.String(log.FieldError, err.Error()),
-		)
+	var b *tele.Bot
 
-		return
+	if config.TelegramBotEnabled() {
+		b, err = initBot(redisCli)
+		if err != nil {
+			log.Error(
+				ctx,
+				"failed to create telegram bot",
+				log.String(log.FieldError, err.Error()),
+			)
+
+			return
+		}
+	} else {
+		log.Info(ctx, "telegram bot is disabled")
 	}
 
 	scheduler, err := initSchedulerForClearingUsageStats(ctx, usersService)
@@ -217,23 +223,27 @@ func main() {
 		return nil
 	})
 
-	// Poll bot updates
-	g.Go(func() error {
-		if config.TelegramUseWebHooks() {
-			log.Info(ctx, "start receiving updates via webhook")
-		} else {
-			log.Info(ctx, "start polling updates")
-		}
+	if b != nil {
+		// Poll bot updates
+		g.Go(func() error {
+			if config.TelegramUseWebHooks() {
+				log.Info(ctx, "start receiving updates via webhook")
+			} else {
+				log.Info(ctx, "start polling updates")
+			}
 
-		b.Start()
+			b.Start()
 
-		return nil
-	})
+			return nil
+		})
+	}
 
 	g.Go(func() error {
 		<-ctx.Done()
 
-		b.Stop()
+		if b != nil {
+			b.Stop()
+		}
 
 		if err := proxyListener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			return err

@@ -32,6 +32,21 @@ func TestTelegramUseWebHooks(t *testing.T) {
 	assert.False(t, TelegramUseWebHooks())
 }
 
+func TestTelegramBotEnabled(t *testing.T) {
+	t.Cleanup(func() {
+		_ = os.Unsetenv("TELEGRAM_BOT_ENABLED")
+	})
+
+	assert.NoError(t, os.Setenv("TELEGRAM_BOT_ENABLED", "true"))
+	assert.True(t, TelegramBotEnabled())
+
+	assert.NoError(t, os.Setenv("TELEGRAM_BOT_ENABLED", "false"))
+	assert.False(t, TelegramBotEnabled())
+
+	assert.NoError(t, os.Unsetenv("TELEGRAM_BOT_ENABLED"))
+	assert.True(t, TelegramBotEnabled())
+}
+
 func TestBotAppPort(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.Unsetenv("BOT_APP_PORT")
@@ -79,6 +94,7 @@ func TestOtherGetters(t *testing.T) {
 		t.Setenv("REDIS_AUTH_UPDATES_QUEUE_SIZE", "")
 		t.Setenv("REDIS_USAGE_UPDATES_QUEUE_SIZE", "")
 		t.Setenv("LOG_LEVEL", "")
+		t.Setenv("TELEGRAM_BOT_ENABLED", "")
 		t.Setenv("TELEGRAM_API_TOKEN", "")
 		t.Setenv("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", "")
 		t.Setenv("PUBLIC_URL", "")
@@ -98,6 +114,7 @@ func TestOtherGetters(t *testing.T) {
 		assert.Equal(t, 4096, RedisAuthUpdatesQueueSize())
 		assert.Equal(t, 16384, RedisUsageUpdatesQueueSize())
 		assert.Equal(t, "warning", LogLevel())
+		assert.True(t, TelegramBotEnabled())
 		assert.Equal(t, "", TelegramAPIToken())
 		assert.Equal(t, time.Minute, TelegramUpdateProcessingTimeout())
 		assert.Equal(t, "", PublicURL())
@@ -119,6 +136,7 @@ func TestOtherGetters(t *testing.T) {
 		t.Setenv("REDIS_AUTH_UPDATES_QUEUE_SIZE", "100")
 		t.Setenv("REDIS_USAGE_UPDATES_QUEUE_SIZE", "200")
 		t.Setenv("LOG_LEVEL", "debug")
+		t.Setenv("TELEGRAM_BOT_ENABLED", "false")
 		t.Setenv("TELEGRAM_API_TOKEN", "token")
 		t.Setenv("TELEGRAM_UPDATE_PROCESSING_TIMEOUT", "90s")
 		t.Setenv("PUBLIC_URL", "https://example.com")
@@ -138,6 +156,7 @@ func TestOtherGetters(t *testing.T) {
 		assert.Equal(t, 100, RedisAuthUpdatesQueueSize())
 		assert.Equal(t, 200, RedisUsageUpdatesQueueSize())
 		assert.Equal(t, "debug", LogLevel())
+		assert.False(t, TelegramBotEnabled())
 		assert.Equal(t, "token", TelegramAPIToken())
 		assert.Equal(t, 90*time.Second, TelegramUpdateProcessingTimeout())
 		assert.Equal(t, "https://example.com", PublicURL())
