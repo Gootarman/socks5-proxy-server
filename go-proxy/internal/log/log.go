@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -44,4 +45,20 @@ func ParseStringLogLevel(logLevel string) slog.Level {
 	default:
 		panic(fmt.Sprintf("unknown log level %s, must be one of: info, debug, warn or error", logLevel))
 	}
+}
+
+func Debug(ctx context.Context, msg string, attrs ...Attr) {
+	slog.LogAttrs(ctx, slog.LevelDebug, msg, attrs...)
+}
+
+func Info(ctx context.Context, msg string, attrs ...Attr) {
+	slog.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
+}
+
+func Warn(ctx context.Context, msg string, attrs ...Attr) {
+	slog.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
+}
+
+func Error(ctx context.Context, msg string, attrs ...Attr) {
+	slog.LogAttrs(ctx, slog.LevelError, msg, attrs...)
 }
