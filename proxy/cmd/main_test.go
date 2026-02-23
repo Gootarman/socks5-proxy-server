@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/things-go/go-socks5"
 	tele "gopkg.in/telebot.v3"
+
+	proxycore "github.com/nskondratev/socks5-proxy-server/proxy/internal/proxy"
 )
 
 func TestGetUsernameFromRequest(t *testing.T) {
@@ -62,7 +64,7 @@ func TestGetUsernameFromRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := getUsernameFromRequest(tt.request)
+			got, ok := proxycore.UsernameFromRequest(tt.request)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.wantOK, ok)
 		})

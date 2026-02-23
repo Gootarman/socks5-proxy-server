@@ -1,7 +1,5 @@
 package proxy
 
-// TODO: move all files in this package to internal/proxy/adapters
-
 import (
 	"context"
 	"log"

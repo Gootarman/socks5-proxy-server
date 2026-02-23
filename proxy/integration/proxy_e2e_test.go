@@ -13,9 +13,9 @@ import (
 
 	"github.com/things-go/go-socks5"
 
-	proxyadapter "github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cache"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/password"
+	proxyadapter "github.com/nskondratev/socks5-proxy-server/proxy/internal/proxy/adapters"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 

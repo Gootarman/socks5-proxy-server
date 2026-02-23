@@ -14,11 +14,9 @@ import (
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/joho/godotenv"
-	"github.com/things-go/go-socks5"
 	"golang.org/x/sync/errgroup"
 	tele "gopkg.in/telebot.v3"
 
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/createuser"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/deleteuser"
@@ -29,12 +27,12 @@ import (
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/handlers/message"
 	mw "github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/middleware"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cache"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/log"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/metrics"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/password"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/proxy"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/redis"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/admin"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
@@ -53,7 +51,6 @@ func main() {
 
 	redisCli := redis.New(config.RedisHost(), config.RedisPort(), config.RedisDB())
 
-	passwords := password.New()
 	usersService := users.New(redisCli)
 
 	// Handle CLI commands, if passed
@@ -86,67 +83,27 @@ func main() {
 		return
 	}
 
-	// TODO: перенести всю инициализацию socks5 прокси в пакет internal/proxy. Основную настройку в файл internal/proxy/proxy.go
-	dialer := &net.Dialer{}
-
-	socks5Opts := []socks5.Option{
-		socks5.WithDialAndRequest(func(ctx context.Context, network, addr string, request *socks5.Request) (net.Conn, error) {
-			// TODO: вот эту функцию надо занести в internal/proxy/adapters, в инициализации использовать чисто коллбэк
-			conn, err := dialer.DialContext(ctx, network, addr)
-			if err != nil {
-				return nil, err
-			}
-
-			metricsService.ObserveConnectionOpened()
-
-			onClose := func() {
-				metricsService.ObserveConnectionClosed()
-			}
-
-			username, ok := getUsernameFromRequest(request)
-			if !ok {
-				return proxy.NewUsageTrackedConnWithClose(conn, nil, onClose), nil
-			}
-
-			return proxy.NewUsageTrackedConnWithClose(conn, func(dataLen int64) {
-				metricsService.ObserveProxyTrafficBytes(dataLen)
-				metricsService.ObserveProxyTrafficBytesByUsername(username, dataLen)
-
-				if queued := updatesManager.EnqueueUsageUpdate(username, dataLen); !queued {
-					metricsService.ObserveDroppedRedisUpdate(metrics.QueueUsage)
-
-					log.Warn(
-						ctx,
-						"failed to enqueue data usage update for user",
-						log.String(log.FieldUsername, username),
-					)
-				}
-			}, onClose), nil
-		}),
-	}
-
-	if config.RequireAuth() {
-		authCredentialValidator := proxy.NewAuthWithCache(
-			cache.NewExpirableLRU[proxy.AuthCacheKey, bool](config.AuthCacheMaxSize(), config.AuthCacheTTL()),
-			metricsService.InstrumentAuthValidator(proxy.NewAuth(usersService, passwords)),
-			func(user string) {
-				if queued := updatesManager.EnqueueLastAuthDateUpdate(user); !queued {
-					metricsService.ObserveDroppedRedisUpdate(metrics.QueueAuth)
-
-					log.Warn(
-						ctx,
-						"failed to enqueue auth date update for user",
-						log.String(log.FieldUsername, user),
-					)
-				}
-			},
+	server, err := proxy.NewServer(proxy.NewServerParams{
+		Config: proxy.Config{
+			RequireAuth:      config.RequireAuth(),
+			AuthCacheMaxSize: config.AuthCacheMaxSize(),
+			AuthCacheTTL:     config.AuthCacheTTL(),
+		},
+		PasswordHashGetter: usersService,
+		PasswordComparator: password.New(),
+		UpdatesManager:     updatesManager,
+		Metrics:            metricsService,
+	})
+	if err != nil {
+		log.Error(
+			ctx,
+			"failed to init socks5 server",
+			log.String(log.FieldError, err.Error()),
 		)
 
-		socks5Opts = append(socks5Opts, socks5.WithCredential(authCredentialValidator))
+		return
 	}
 
-	// Create a SOCKS5 server
-	server := socks5.NewServer(socks5Opts...)
 	listenCfg := net.ListenConfig{}
 
 	proxyListener, err := listenCfg.Listen(ctx, "tcp", ":8000")
@@ -266,24 +223,6 @@ func main() {
 	}
 
 	log.Info(ctx, "exit from app")
-}
-
-// TODO: унести функцию в internal/proxy/proxy.go
-func getUsernameFromRequest(request *socks5.Request) (string, bool) {
-	if request == nil || request.AuthContext == nil || request.AuthContext.Payload == nil {
-		return "", false
-	}
-
-	username, ok := request.AuthContext.Payload["Username"]
-	if !ok || username == "" {
-		username = request.AuthContext.Payload["username"]
-	}
-
-	if username == "" {
-		return "", false
-	}
-
-	return username, true
 }
 
 func initBot(redisCli *redis.Redis, usersService *users.Users) (*tele.Bot, error) {
