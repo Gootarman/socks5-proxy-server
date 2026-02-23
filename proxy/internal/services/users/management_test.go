@@ -74,6 +74,9 @@ func TestCreate(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error")
 		}
+		if !errors.Is(err, ErrUserExists) {
+			t.Fatalf("expected ErrUserExists, got %v", err)
+		}
 	})
 }
 
@@ -124,6 +127,9 @@ func TestDelete(t *testing.T) {
 		err := u.Delete(context.Background(), "alice")
 		if err == nil {
 			t.Fatal("expected error")
+		}
+		if !errors.Is(err, ErrUserNotFound) {
+			t.Fatalf("expected ErrUserNotFound, got %v", err)
 		}
 	})
 }

@@ -50,3 +50,14 @@ func TestCommandHandler_HandleRemoveError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestCommandHandler_HandleEmptyUsername(t *testing.T) {
+	t.Parallel()
+
+	h := New(&adminServiceMock{}, strings.NewReader("\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

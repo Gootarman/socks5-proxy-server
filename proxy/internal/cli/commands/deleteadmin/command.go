@@ -45,11 +45,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-admin] admin service dependency is not configured")
 	}
 
-	if _, err := fmt.Fprint(h.out, "Input admin username and press Enter: "); err != nil {
-		return fmt.Errorf("[delete-admin] failed to write prompt: %w", err)
-	}
-
-	username, err := h.readInputLine()
+	username, err := common.PromptAndReadRequiredInput(h.out, h.in, "Input admin username and press Enter: ", "username")
 	if err != nil {
 		return fmt.Errorf("[delete-admin] failed to read username: %w", err)
 	}
@@ -58,13 +54,9 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-admin] failed to delete admin: %w", err)
 	}
 
-	if _, err = fmt.Fprintln(h.out, "Admin successfully deleted."); err != nil {
-		return fmt.Errorf("[delete-admin] failed to write success message: %w", err)
+	if err = common.WriteSuccess(h.out, "Admin successfully deleted."); err != nil {
+		return fmt.Errorf("[delete-admin] %w", err)
 	}
 
 	return nil
-}
-
-func (h *CommandHandler) readInputLine() (string, error) {
-	return common.ReadInputLine(h.in)
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 	goredis "github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -143,7 +144,7 @@ func (s *Store) GetUsersStats(ctx context.Context) ([]UserStat, error) {
 
 func (s *Store) CreateUser(ctx context.Context, username, password string) error {
 	if _, err := s.redis.HGet(ctx, userAuthKey, username); err == nil {
-		return fmt.Errorf("user with provided username already exists")
+		return usersservice.ErrUserExists
 	} else if !errors.Is(err, goredis.Nil) {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}
@@ -162,7 +163,7 @@ func (s *Store) CreateUser(ctx context.Context, username, password string) error
 
 func (s *Store) DeleteUser(ctx context.Context, username string) error {
 	if _, err := s.redis.HGet(ctx, userAuthKey, username); errors.Is(err, goredis.Nil) {
-		return fmt.Errorf("user with provided username not found")
+		return usersservice.ErrUserNotFound
 	} else if err != nil {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}

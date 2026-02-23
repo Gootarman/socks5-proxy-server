@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type usersMock struct {
@@ -48,5 +50,27 @@ func TestCommandHandler_HandleDeleteError(t *testing.T) {
 	err := h.Handle(context.Background())
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestCommandHandler_HandleEmptyUsername(t *testing.T) {
+	t.Parallel()
+
+	h := New(&usersMock{}, strings.NewReader("\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCommandHandler_HandleUserNotFound(t *testing.T) {
+	t.Parallel()
+
+	h := New(&usersMock{deleteErr: users.ErrUserNotFound}, strings.NewReader("alice\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if !errors.Is(err, users.ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
 	}
 }

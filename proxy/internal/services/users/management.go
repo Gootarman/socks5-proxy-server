@@ -11,6 +11,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var (
+	ErrUserExists   = errors.New("user with provided username already exists")
+	ErrUserNotFound = errors.New("user with provided username not found")
+)
+
 type Stat struct {
 	Username   string
 	UsageBytes int64
@@ -20,7 +25,7 @@ type Stat struct {
 
 func (u *Users) Create(ctx context.Context, username, password string) error {
 	if _, err := u.redis.HGet(ctx, userAuthKey, username); err == nil {
-		return fmt.Errorf("[users] user with provided username already exists")
+		return ErrUserExists
 	} else if !errors.Is(err, goredis.Nil) {
 		return fmt.Errorf("[users] failed to check if user exists: %w", err)
 	}
@@ -39,7 +44,7 @@ func (u *Users) Create(ctx context.Context, username, password string) error {
 
 func (u *Users) Delete(ctx context.Context, username string) error {
 	if _, err := u.redis.HGet(ctx, userAuthKey, username); errors.Is(err, goredis.Nil) {
-		return fmt.Errorf("[users] user with provided username not found")
+		return ErrUserNotFound
 	} else if err != nil {
 		return fmt.Errorf("[users] failed to check if user exists: %w", err)
 	}

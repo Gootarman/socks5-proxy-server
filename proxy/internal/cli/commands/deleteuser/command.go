@@ -3,11 +3,13 @@ package deleteuser
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli/commands/common"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 const (
@@ -45,26 +47,22 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[delete-user] user service dependency is not configured")
 	}
 
-	if _, err := fmt.Fprint(h.out, "Input username and press Enter: "); err != nil {
-		return fmt.Errorf("[delete-user] failed to write prompt: %w", err)
-	}
-
-	username, err := h.readInputLine()
+	username, err := common.PromptAndReadRequiredInput(h.out, h.in, "Input username and press Enter: ", "username")
 	if err != nil {
 		return fmt.Errorf("[delete-user] failed to read username: %w", err)
 	}
 
 	if err = h.users.Delete(ctx, username); err != nil {
+		if errors.Is(err, users.ErrUserNotFound) {
+			return fmt.Errorf("[delete-user] %w", users.ErrUserNotFound)
+		}
+
 		return fmt.Errorf("[delete-user] failed to delete user: %w", err)
 	}
 
-	if _, err = fmt.Fprintln(h.out, "User successfully deleted."); err != nil {
-		return fmt.Errorf("[delete-user] failed to write success message: %w", err)
+	if err = common.WriteSuccess(h.out, "User successfully deleted."); err != nil {
+		return fmt.Errorf("[delete-user] %w", err)
 	}
 
 	return nil
-}
-
-func (h *CommandHandler) readInputLine() (string, error) {
-	return common.ReadInputLine(h.in)
 }

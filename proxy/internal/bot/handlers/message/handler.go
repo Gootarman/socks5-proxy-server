@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/generatepass"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/config"
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type storeI interface {
@@ -91,6 +93,10 @@ func (h *Handler) Handle(c tele.Context) error {
 
 		proxyUsername := userState.Data["username"]
 		if err := h.store.CreateUser(ctx, proxyUsername, text); err != nil {
+			if errors.Is(err, usersservice.ErrUserExists) {
+				return c.Send("This username is already taken. Enter another one.")
+			}
+
 			return err
 		}
 
@@ -132,6 +138,10 @@ func (h *Handler) Handle(c tele.Context) error {
 		}
 
 		if err = h.store.DeleteUser(ctx, text); err != nil {
+			if errors.Is(err, usersservice.ErrUserNotFound) {
+				return c.Send("User with provided username does not exists. Enter another one.")
+			}
+
 			return err
 		}
 

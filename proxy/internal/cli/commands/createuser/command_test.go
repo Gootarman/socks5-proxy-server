@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type usersMock struct {
@@ -54,5 +56,38 @@ func TestCommandHandler_HandleCreateError(t *testing.T) {
 	err := h.Handle(context.Background())
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestCommandHandler_HandleEmptyUsername(t *testing.T) {
+	t.Parallel()
+
+	h := New(&usersMock{}, strings.NewReader("\nsecret\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCommandHandler_HandleEmptyPassword(t *testing.T) {
+	t.Parallel()
+
+	h := New(&usersMock{}, strings.NewReader("alice\n\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCommandHandler_HandleUserAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	h := New(&usersMock{createErr: users.ErrUserExists}, strings.NewReader("alice\nsecret\n"), bytes.NewBuffer(nil))
+
+	err := h.Handle(context.Background())
+	if !errors.Is(err, users.ErrUserExists) {
+		t.Fatalf("expected ErrUserExists, got %v", err)
 	}
 }

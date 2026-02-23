@@ -14,6 +14,7 @@ import (
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type sendCall struct {
@@ -238,6 +239,23 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 		assert.EqualError(t, err, "create failed")
 	})
 
+	t.Run("create user already exists", func(t *testing.T) {
+		s := NewStoreIMock(t)
+		s.GetUserStateMock.Return(&store.UserState{
+			State: store.StateCreateUserEnterPassword,
+			Data:  map[string]string{"username": "proxy-user"},
+		}, nil)
+		s.CreateUserMock.Return(usersservice.ErrUserExists)
+
+		c := &contextStub{text: "pass", sender: &tele.User{Username: "admin"}}
+
+		h := New(s)
+		err := h.Handle(c)
+		require.NoError(t, err)
+		require.Len(t, c.sendCall, 1)
+		assert.Equal(t, "This username is already taken. Enter another one.", c.sendCall[0].msg)
+	})
+
 	t.Run("set state error", func(t *testing.T) {
 		s := NewStoreIMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
@@ -357,6 +375,23 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "delete failed")
+	})
+
+	t.Run("delete user not found", func(t *testing.T) {
+		t.Parallel()
+
+		s := NewStoreIMock(t)
+		s.GetUserStateMock.Return(baseState, nil)
+		s.IsUsernameFreeMock.Return(false, nil)
+		s.DeleteUserMock.Return(usersservice.ErrUserNotFound)
+
+		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
+
+		h := New(s)
+		err := h.Handle(c)
+		require.NoError(t, err)
+		require.Len(t, c.sendCall, 1)
+		assert.Equal(t, "User with provided username does not exists. Enter another one.", c.sendCall[0].msg)
 	})
 
 	t.Run("set state error", func(t *testing.T) {

@@ -3,11 +3,13 @@ package createuser
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli/commands/common"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 const (
@@ -45,35 +47,32 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[create-user] user service dependency is not configured")
 	}
 
-	if _, err := fmt.Fprint(h.out, "Input username and press Enter: "); err != nil {
-		return fmt.Errorf("[create-user] failed to write username prompt: %w", err)
-	}
-
-	username, err := h.readInputLine()
+	username, err := common.PromptAndReadRequiredInput(h.out, h.in, "Input username and press Enter: ", "username")
 	if err != nil {
 		return fmt.Errorf("[create-user] failed to read username: %w", err)
 	}
 
-	if _, err = fmt.Fprint(h.out, "Input password and press Enter to create new user: "); err != nil {
-		return fmt.Errorf("[create-user] failed to write password prompt: %w", err)
-	}
-
-	password, err := h.readInputLine()
+	password, err := common.PromptAndReadRequiredInput(
+		h.out,
+		h.in,
+		"Input password and press Enter to create new user: ",
+		"password",
+	)
 	if err != nil {
 		return fmt.Errorf("[create-user] failed to read password: %w", err)
 	}
 
 	if err = h.users.Create(ctx, username, password); err != nil {
+		if errors.Is(err, users.ErrUserExists) {
+			return fmt.Errorf("[create-user] %w", users.ErrUserExists)
+		}
+
 		return fmt.Errorf("[create-user] failed to create user: %w", err)
 	}
 
-	if _, err = fmt.Fprintln(h.out, "User successfully created."); err != nil {
-		return fmt.Errorf("[create-user] failed to write success message: %w", err)
+	if err = common.WriteSuccess(h.out, "User successfully created."); err != nil {
+		return fmt.Errorf("[create-user] %w", err)
 	}
 
 	return nil
-}
-
-func (h *CommandHandler) readInputLine() (string, error) {
-	return common.ReadInputLine(h.in)
 }

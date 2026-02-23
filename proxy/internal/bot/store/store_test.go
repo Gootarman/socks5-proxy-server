@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -212,7 +213,7 @@ func TestStore_CreateUser(t *testing.T) {
 		s := New(r)
 		err := s.CreateUser(ctx, "alice", "secret")
 		require.Error(t, err)
-		assert.EqualError(t, err, "user with provided username already exists")
+		assert.ErrorIs(t, err, usersservice.ErrUserExists)
 	})
 
 	t.Run("exists check error", func(t *testing.T) {
@@ -277,7 +278,7 @@ func TestStore_DeleteUser(t *testing.T) {
 		s := New(r)
 		err := s.DeleteUser(ctx, "alice")
 		require.Error(t, err)
-		assert.EqualError(t, err, "user with provided username not found")
+		assert.ErrorIs(t, err, usersservice.ErrUserNotFound)
 	})
 
 	t.Run("exists check error", func(t *testing.T) {
