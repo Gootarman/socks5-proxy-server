@@ -2,8 +2,6 @@
 
 package proxy
 
-//go:generate minimock -i github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy.passwordHashGetter -o password_hash_getter_mock_test.go -n PasswordHashGetterMock -p proxy
-
 import (
 	"context"
 	"sync"

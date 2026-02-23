@@ -86,10 +86,12 @@ func main() {
 		return
 	}
 
+	// TODO: перенести всю инициализацию socks5 прокси в пакет internal/proxy. Основную настройку в файл internal/proxy/proxy.go
 	dialer := &net.Dialer{}
 
 	socks5Opts := []socks5.Option{
 		socks5.WithDialAndRequest(func(ctx context.Context, network, addr string, request *socks5.Request) (net.Conn, error) {
+			// TODO: вот эту функцию надо занести в internal/proxy/adapters, в инициализации использовать чисто коллбэк
 			conn, err := dialer.DialContext(ctx, network, addr)
 			if err != nil {
 				return nil, err
@@ -266,6 +268,7 @@ func main() {
 	log.Info(ctx, "exit from app")
 }
 
+// TODO: унести функцию в internal/proxy/proxy.go
 func getUsernameFromRequest(request *socks5.Request) (string, bool) {
 	if request == nil || request.AuthContext == nil || request.AuthContext.Payload == nil {
 		return "", false

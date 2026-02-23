@@ -1,6 +1,6 @@
-//go:generate minimock -i .passwordHashGetter,.passwordComparator,.authValidator,.cache
-
 package proxy
+
+// TODO: move all files in this package to internal/proxy/adapters
 
 import (
 	"context"

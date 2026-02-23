@@ -2,8 +2,6 @@
 
 package proxy
 
-//go:generate minimock -i github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy.cache -o cache_mock_test.go -n CacheMock -p proxy
-
 import (
 	"sync"
 	mm_atomic "sync/atomic"

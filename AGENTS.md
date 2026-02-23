@@ -31,10 +31,10 @@
 - `cmd/loadtest` can run local SOCKS5 load tests and generate reports (`json/csv/md`).
 
 ## Common commands
-- Go proxy tests: `cd proxy && go test ./...`
+- Go proxy tests: `cd proxy && make test`
 - Also call linters check after tests: `cd proxy && make lint`
 - Build Go binary for Docker (expected at `proxy/dist/proxy`): `cd proxy && make build` (or your local build flow)
-- Integration tests: `cd proxy && go test -tags=integration ./integration -count=1`
+- Integration tests: `cd proxy && make regress`
 - Run app locally: `cd proxy && go run ./cmd`
 - Run CLI command locally: `cd proxy && go run ./cmd create-user` (replace command as needed)
 - Run CLI command in container: `docker exec -it <proxy-container> /app/proxy create-user`

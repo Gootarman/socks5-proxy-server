@@ -2,8 +2,6 @@
 
 package proxy
 
-//go:generate minimock -i github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy.passwordComparator -o password_comparator_mock_test.go -n PasswordComparatorMock -p proxy
-
 import (
 	"sync"
 	mm_atomic "sync/atomic"

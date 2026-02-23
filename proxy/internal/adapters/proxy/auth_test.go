@@ -1,3 +1,5 @@
+//go:generate minimock -i .passwordHashGetter,.passwordComparator,.authValidator,.cache -g
+
 package proxy
 
 import (

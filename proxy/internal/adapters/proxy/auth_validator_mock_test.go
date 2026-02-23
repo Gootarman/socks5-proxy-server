@@ -2,8 +2,6 @@
 
 package proxy
 
-//go:generate minimock -i github.com/nskondratev/socks5-proxy-server/proxy/internal/adapters/proxy.authValidator -o auth_validator_mock_test.go -n AuthValidatorMock -p proxy
-
 import (
 	"sync"
 	mm_atomic "sync/atomic"

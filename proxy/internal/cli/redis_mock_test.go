@@ -16,6 +16,13 @@ type RedisMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
+	funcDel          func(ctx context.Context, keys ...string) (err error)
+	funcDelOrigin    string
+	inspectFuncDel   func(ctx context.Context, keys ...string)
+	afterDelCounter  uint64
+	beforeDelCounter uint64
+	DelMock          mRedisMockDel
+
 	funcHDel          func(ctx context.Context, key string, fields ...string) (err error)
 	funcHDelOrigin    string
 	inspectFuncHDel   func(ctx context.Context, key string, fields ...string)
@@ -44,6 +51,13 @@ type RedisMock struct {
 	beforeHGetAllCounter uint64
 	HGetAllMock          mRedisMockHGetAll
 
+	funcHIncrBy          func(ctx context.Context, key string, field string, incr int64) (err error)
+	funcHIncrByOrigin    string
+	inspectFuncHIncrBy   func(ctx context.Context, key string, field string, incr int64)
+	afterHIncrByCounter  uint64
+	beforeHIncrByCounter uint64
+	HIncrByMock          mRedisMockHIncrBy
+
 	funcHSet          func(ctx context.Context, key string, values ...interface{}) (err error)
 	funcHSetOrigin    string
 	inspectFuncHSet   func(ctx context.Context, key string, values ...interface{})
@@ -60,6 +74,9 @@ func NewRedisMock(t minimock.Tester) *RedisMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.DelMock = mRedisMockDel{mock: m}
+	m.DelMock.callArgs = []*RedisMockDelParams{}
+
 	m.HDelMock = mRedisMockHDel{mock: m}
 	m.HDelMock.callArgs = []*RedisMockHDelParams{}
 
@@ -72,12 +89,357 @@ func NewRedisMock(t minimock.Tester) *RedisMock {
 	m.HGetAllMock = mRedisMockHGetAll{mock: m}
 	m.HGetAllMock.callArgs = []*RedisMockHGetAllParams{}
 
+	m.HIncrByMock = mRedisMockHIncrBy{mock: m}
+	m.HIncrByMock.callArgs = []*RedisMockHIncrByParams{}
+
 	m.HSetMock = mRedisMockHSet{mock: m}
 	m.HSetMock.callArgs = []*RedisMockHSetParams{}
 
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mRedisMockDel struct {
+	optional           bool
+	mock               *RedisMock
+	defaultExpectation *RedisMockDelExpectation
+	expectations       []*RedisMockDelExpectation
+
+	callArgs []*RedisMockDelParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// RedisMockDelExpectation specifies expectation struct of the redis.Del
+type RedisMockDelExpectation struct {
+	mock               *RedisMock
+	params             *RedisMockDelParams
+	paramPtrs          *RedisMockDelParamPtrs
+	expectationOrigins RedisMockDelExpectationOrigins
+	results            *RedisMockDelResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// RedisMockDelParams contains parameters of the redis.Del
+type RedisMockDelParams struct {
+	ctx  context.Context
+	keys []string
+}
+
+// RedisMockDelParamPtrs contains pointers to parameters of the redis.Del
+type RedisMockDelParamPtrs struct {
+	ctx  *context.Context
+	keys *[]string
+}
+
+// RedisMockDelResults contains results of the redis.Del
+type RedisMockDelResults struct {
+	err error
+}
+
+// RedisMockDelOrigins contains origins of expectations of the redis.Del
+type RedisMockDelExpectationOrigins struct {
+	origin     string
+	originCtx  string
+	originKeys string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmDel *mRedisMockDel) Optional() *mRedisMockDel {
+	mmDel.optional = true
+	return mmDel
+}
+
+// Expect sets up expected params for redis.Del
+func (mmDel *mRedisMockDel) Expect(ctx context.Context, keys ...string) *mRedisMockDel {
+	if mmDel.mock.funcDel != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Set")
+	}
+
+	if mmDel.defaultExpectation == nil {
+		mmDel.defaultExpectation = &RedisMockDelExpectation{}
+	}
+
+	if mmDel.defaultExpectation.paramPtrs != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by ExpectParams functions")
+	}
+
+	mmDel.defaultExpectation.params = &RedisMockDelParams{ctx, keys}
+	mmDel.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmDel.expectations {
+		if minimock.Equal(e.params, mmDel.defaultExpectation.params) {
+			mmDel.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmDel.defaultExpectation.params)
+		}
+	}
+
+	return mmDel
+}
+
+// ExpectCtxParam1 sets up expected param ctx for redis.Del
+func (mmDel *mRedisMockDel) ExpectCtxParam1(ctx context.Context) *mRedisMockDel {
+	if mmDel.mock.funcDel != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Set")
+	}
+
+	if mmDel.defaultExpectation == nil {
+		mmDel.defaultExpectation = &RedisMockDelExpectation{}
+	}
+
+	if mmDel.defaultExpectation.params != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Expect")
+	}
+
+	if mmDel.defaultExpectation.paramPtrs == nil {
+		mmDel.defaultExpectation.paramPtrs = &RedisMockDelParamPtrs{}
+	}
+	mmDel.defaultExpectation.paramPtrs.ctx = &ctx
+	mmDel.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmDel
+}
+
+// ExpectKeysParam2 sets up expected param keys for redis.Del
+func (mmDel *mRedisMockDel) ExpectKeysParam2(keys ...string) *mRedisMockDel {
+	if mmDel.mock.funcDel != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Set")
+	}
+
+	if mmDel.defaultExpectation == nil {
+		mmDel.defaultExpectation = &RedisMockDelExpectation{}
+	}
+
+	if mmDel.defaultExpectation.params != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Expect")
+	}
+
+	if mmDel.defaultExpectation.paramPtrs == nil {
+		mmDel.defaultExpectation.paramPtrs = &RedisMockDelParamPtrs{}
+	}
+	mmDel.defaultExpectation.paramPtrs.keys = &keys
+	mmDel.defaultExpectation.expectationOrigins.originKeys = minimock.CallerInfo(1)
+
+	return mmDel
+}
+
+// Inspect accepts an inspector function that has same arguments as the redis.Del
+func (mmDel *mRedisMockDel) Inspect(f func(ctx context.Context, keys ...string)) *mRedisMockDel {
+	if mmDel.mock.inspectFuncDel != nil {
+		mmDel.mock.t.Fatalf("Inspect function is already set for RedisMock.Del")
+	}
+
+	mmDel.mock.inspectFuncDel = f
+
+	return mmDel
+}
+
+// Return sets up results that will be returned by redis.Del
+func (mmDel *mRedisMockDel) Return(err error) *RedisMock {
+	if mmDel.mock.funcDel != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Set")
+	}
+
+	if mmDel.defaultExpectation == nil {
+		mmDel.defaultExpectation = &RedisMockDelExpectation{mock: mmDel.mock}
+	}
+	mmDel.defaultExpectation.results = &RedisMockDelResults{err}
+	mmDel.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmDel.mock
+}
+
+// Set uses given function f to mock the redis.Del method
+func (mmDel *mRedisMockDel) Set(f func(ctx context.Context, keys ...string) (err error)) *RedisMock {
+	if mmDel.defaultExpectation != nil {
+		mmDel.mock.t.Fatalf("Default expectation is already set for the redis.Del method")
+	}
+
+	if len(mmDel.expectations) > 0 {
+		mmDel.mock.t.Fatalf("Some expectations are already set for the redis.Del method")
+	}
+
+	mmDel.mock.funcDel = f
+	mmDel.mock.funcDelOrigin = minimock.CallerInfo(1)
+	return mmDel.mock
+}
+
+// When sets expectation for the redis.Del which will trigger the result defined by the following
+// Then helper
+func (mmDel *mRedisMockDel) When(ctx context.Context, keys ...string) *RedisMockDelExpectation {
+	if mmDel.mock.funcDel != nil {
+		mmDel.mock.t.Fatalf("RedisMock.Del mock is already set by Set")
+	}
+
+	expectation := &RedisMockDelExpectation{
+		mock:               mmDel.mock,
+		params:             &RedisMockDelParams{ctx, keys},
+		expectationOrigins: RedisMockDelExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmDel.expectations = append(mmDel.expectations, expectation)
+	return expectation
+}
+
+// Then sets up redis.Del return parameters for the expectation previously defined by the When method
+func (e *RedisMockDelExpectation) Then(err error) *RedisMock {
+	e.results = &RedisMockDelResults{err}
+	return e.mock
+}
+
+// Times sets number of times redis.Del should be invoked
+func (mmDel *mRedisMockDel) Times(n uint64) *mRedisMockDel {
+	if n == 0 {
+		mmDel.mock.t.Fatalf("Times of RedisMock.Del mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmDel.expectedInvocations, n)
+	mmDel.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmDel
+}
+
+func (mmDel *mRedisMockDel) invocationsDone() bool {
+	if len(mmDel.expectations) == 0 && mmDel.defaultExpectation == nil && mmDel.mock.funcDel == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmDel.mock.afterDelCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmDel.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Del implements redis
+func (mmDel *RedisMock) Del(ctx context.Context, keys ...string) (err error) {
+	mm_atomic.AddUint64(&mmDel.beforeDelCounter, 1)
+	defer mm_atomic.AddUint64(&mmDel.afterDelCounter, 1)
+
+	mmDel.t.Helper()
+
+	if mmDel.inspectFuncDel != nil {
+		mmDel.inspectFuncDel(ctx, keys...)
+	}
+
+	mm_params := RedisMockDelParams{ctx, keys}
+
+	// Record call args
+	mmDel.DelMock.mutex.Lock()
+	mmDel.DelMock.callArgs = append(mmDel.DelMock.callArgs, &mm_params)
+	mmDel.DelMock.mutex.Unlock()
+
+	for _, e := range mmDel.DelMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmDel.DelMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmDel.DelMock.defaultExpectation.Counter, 1)
+		mm_want := mmDel.DelMock.defaultExpectation.params
+		mm_want_ptrs := mmDel.DelMock.defaultExpectation.paramPtrs
+
+		mm_got := RedisMockDelParams{ctx, keys}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmDel.t.Errorf("RedisMock.Del got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDel.DelMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.keys != nil && !minimock.Equal(*mm_want_ptrs.keys, mm_got.keys) {
+				mmDel.t.Errorf("RedisMock.Del got unexpected parameter keys, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDel.DelMock.defaultExpectation.expectationOrigins.originKeys, *mm_want_ptrs.keys, mm_got.keys, minimock.Diff(*mm_want_ptrs.keys, mm_got.keys))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmDel.t.Errorf("RedisMock.Del got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmDel.DelMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmDel.DelMock.defaultExpectation.results
+		if mm_results == nil {
+			mmDel.t.Fatal("No results are set for the RedisMock.Del")
+		}
+		return (*mm_results).err
+	}
+	if mmDel.funcDel != nil {
+		return mmDel.funcDel(ctx, keys...)
+	}
+	mmDel.t.Fatalf("Unexpected call to RedisMock.Del. %v %v", ctx, keys)
+	return
+}
+
+// DelAfterCounter returns a count of finished RedisMock.Del invocations
+func (mmDel *RedisMock) DelAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDel.afterDelCounter)
+}
+
+// DelBeforeCounter returns a count of RedisMock.Del invocations
+func (mmDel *RedisMock) DelBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDel.beforeDelCounter)
+}
+
+// Calls returns a list of arguments used in each call to RedisMock.Del.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmDel *mRedisMockDel) Calls() []*RedisMockDelParams {
+	mmDel.mutex.RLock()
+
+	argCopy := make([]*RedisMockDelParams, len(mmDel.callArgs))
+	copy(argCopy, mmDel.callArgs)
+
+	mmDel.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockDelDone returns true if the count of the Del invocations corresponds
+// the number of defined expectations
+func (m *RedisMock) MinimockDelDone() bool {
+	if m.DelMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.DelMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.DelMock.invocationsDone()
+}
+
+// MinimockDelInspect logs each unmet expectation
+func (m *RedisMock) MinimockDelInspect() {
+	for _, e := range m.DelMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to RedisMock.Del at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterDelCounter := mm_atomic.LoadUint64(&m.afterDelCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.DelMock.defaultExpectation != nil && afterDelCounter < 1 {
+		if m.DelMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to RedisMock.Del at\n%s", m.DelMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to RedisMock.Del at\n%s with params: %#v", m.DelMock.defaultExpectation.expectationOrigins.origin, *m.DelMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcDel != nil && afterDelCounter < 1 {
+		m.t.Errorf("Expected call to RedisMock.Del at\n%s", m.funcDelOrigin)
+	}
+
+	if !m.DelMock.invocationsDone() && afterDelCounter > 0 {
+		m.t.Errorf("Expected %d calls to RedisMock.Del at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.DelMock.expectedInvocations), m.DelMock.expectedInvocationsOrigin, afterDelCounter)
+	}
 }
 
 type mRedisMockHDel struct {
@@ -1544,6 +1906,410 @@ func (m *RedisMock) MinimockHGetAllInspect() {
 	}
 }
 
+type mRedisMockHIncrBy struct {
+	optional           bool
+	mock               *RedisMock
+	defaultExpectation *RedisMockHIncrByExpectation
+	expectations       []*RedisMockHIncrByExpectation
+
+	callArgs []*RedisMockHIncrByParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// RedisMockHIncrByExpectation specifies expectation struct of the redis.HIncrBy
+type RedisMockHIncrByExpectation struct {
+	mock               *RedisMock
+	params             *RedisMockHIncrByParams
+	paramPtrs          *RedisMockHIncrByParamPtrs
+	expectationOrigins RedisMockHIncrByExpectationOrigins
+	results            *RedisMockHIncrByResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// RedisMockHIncrByParams contains parameters of the redis.HIncrBy
+type RedisMockHIncrByParams struct {
+	ctx   context.Context
+	key   string
+	field string
+	incr  int64
+}
+
+// RedisMockHIncrByParamPtrs contains pointers to parameters of the redis.HIncrBy
+type RedisMockHIncrByParamPtrs struct {
+	ctx   *context.Context
+	key   *string
+	field *string
+	incr  *int64
+}
+
+// RedisMockHIncrByResults contains results of the redis.HIncrBy
+type RedisMockHIncrByResults struct {
+	err error
+}
+
+// RedisMockHIncrByOrigins contains origins of expectations of the redis.HIncrBy
+type RedisMockHIncrByExpectationOrigins struct {
+	origin      string
+	originCtx   string
+	originKey   string
+	originField string
+	originIncr  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmHIncrBy *mRedisMockHIncrBy) Optional() *mRedisMockHIncrBy {
+	mmHIncrBy.optional = true
+	return mmHIncrBy
+}
+
+// Expect sets up expected params for redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) Expect(ctx context.Context, key string, field string, incr int64) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{}
+	}
+
+	if mmHIncrBy.defaultExpectation.paramPtrs != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by ExpectParams functions")
+	}
+
+	mmHIncrBy.defaultExpectation.params = &RedisMockHIncrByParams{ctx, key, field, incr}
+	mmHIncrBy.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmHIncrBy.expectations {
+		if minimock.Equal(e.params, mmHIncrBy.defaultExpectation.params) {
+			mmHIncrBy.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmHIncrBy.defaultExpectation.params)
+		}
+	}
+
+	return mmHIncrBy
+}
+
+// ExpectCtxParam1 sets up expected param ctx for redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) ExpectCtxParam1(ctx context.Context) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{}
+	}
+
+	if mmHIncrBy.defaultExpectation.params != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Expect")
+	}
+
+	if mmHIncrBy.defaultExpectation.paramPtrs == nil {
+		mmHIncrBy.defaultExpectation.paramPtrs = &RedisMockHIncrByParamPtrs{}
+	}
+	mmHIncrBy.defaultExpectation.paramPtrs.ctx = &ctx
+	mmHIncrBy.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmHIncrBy
+}
+
+// ExpectKeyParam2 sets up expected param key for redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) ExpectKeyParam2(key string) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{}
+	}
+
+	if mmHIncrBy.defaultExpectation.params != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Expect")
+	}
+
+	if mmHIncrBy.defaultExpectation.paramPtrs == nil {
+		mmHIncrBy.defaultExpectation.paramPtrs = &RedisMockHIncrByParamPtrs{}
+	}
+	mmHIncrBy.defaultExpectation.paramPtrs.key = &key
+	mmHIncrBy.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmHIncrBy
+}
+
+// ExpectFieldParam3 sets up expected param field for redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) ExpectFieldParam3(field string) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{}
+	}
+
+	if mmHIncrBy.defaultExpectation.params != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Expect")
+	}
+
+	if mmHIncrBy.defaultExpectation.paramPtrs == nil {
+		mmHIncrBy.defaultExpectation.paramPtrs = &RedisMockHIncrByParamPtrs{}
+	}
+	mmHIncrBy.defaultExpectation.paramPtrs.field = &field
+	mmHIncrBy.defaultExpectation.expectationOrigins.originField = minimock.CallerInfo(1)
+
+	return mmHIncrBy
+}
+
+// ExpectIncrParam4 sets up expected param incr for redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) ExpectIncrParam4(incr int64) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{}
+	}
+
+	if mmHIncrBy.defaultExpectation.params != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Expect")
+	}
+
+	if mmHIncrBy.defaultExpectation.paramPtrs == nil {
+		mmHIncrBy.defaultExpectation.paramPtrs = &RedisMockHIncrByParamPtrs{}
+	}
+	mmHIncrBy.defaultExpectation.paramPtrs.incr = &incr
+	mmHIncrBy.defaultExpectation.expectationOrigins.originIncr = minimock.CallerInfo(1)
+
+	return mmHIncrBy
+}
+
+// Inspect accepts an inspector function that has same arguments as the redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) Inspect(f func(ctx context.Context, key string, field string, incr int64)) *mRedisMockHIncrBy {
+	if mmHIncrBy.mock.inspectFuncHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("Inspect function is already set for RedisMock.HIncrBy")
+	}
+
+	mmHIncrBy.mock.inspectFuncHIncrBy = f
+
+	return mmHIncrBy
+}
+
+// Return sets up results that will be returned by redis.HIncrBy
+func (mmHIncrBy *mRedisMockHIncrBy) Return(err error) *RedisMock {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	if mmHIncrBy.defaultExpectation == nil {
+		mmHIncrBy.defaultExpectation = &RedisMockHIncrByExpectation{mock: mmHIncrBy.mock}
+	}
+	mmHIncrBy.defaultExpectation.results = &RedisMockHIncrByResults{err}
+	mmHIncrBy.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmHIncrBy.mock
+}
+
+// Set uses given function f to mock the redis.HIncrBy method
+func (mmHIncrBy *mRedisMockHIncrBy) Set(f func(ctx context.Context, key string, field string, incr int64) (err error)) *RedisMock {
+	if mmHIncrBy.defaultExpectation != nil {
+		mmHIncrBy.mock.t.Fatalf("Default expectation is already set for the redis.HIncrBy method")
+	}
+
+	if len(mmHIncrBy.expectations) > 0 {
+		mmHIncrBy.mock.t.Fatalf("Some expectations are already set for the redis.HIncrBy method")
+	}
+
+	mmHIncrBy.mock.funcHIncrBy = f
+	mmHIncrBy.mock.funcHIncrByOrigin = minimock.CallerInfo(1)
+	return mmHIncrBy.mock
+}
+
+// When sets expectation for the redis.HIncrBy which will trigger the result defined by the following
+// Then helper
+func (mmHIncrBy *mRedisMockHIncrBy) When(ctx context.Context, key string, field string, incr int64) *RedisMockHIncrByExpectation {
+	if mmHIncrBy.mock.funcHIncrBy != nil {
+		mmHIncrBy.mock.t.Fatalf("RedisMock.HIncrBy mock is already set by Set")
+	}
+
+	expectation := &RedisMockHIncrByExpectation{
+		mock:               mmHIncrBy.mock,
+		params:             &RedisMockHIncrByParams{ctx, key, field, incr},
+		expectationOrigins: RedisMockHIncrByExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmHIncrBy.expectations = append(mmHIncrBy.expectations, expectation)
+	return expectation
+}
+
+// Then sets up redis.HIncrBy return parameters for the expectation previously defined by the When method
+func (e *RedisMockHIncrByExpectation) Then(err error) *RedisMock {
+	e.results = &RedisMockHIncrByResults{err}
+	return e.mock
+}
+
+// Times sets number of times redis.HIncrBy should be invoked
+func (mmHIncrBy *mRedisMockHIncrBy) Times(n uint64) *mRedisMockHIncrBy {
+	if n == 0 {
+		mmHIncrBy.mock.t.Fatalf("Times of RedisMock.HIncrBy mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmHIncrBy.expectedInvocations, n)
+	mmHIncrBy.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmHIncrBy
+}
+
+func (mmHIncrBy *mRedisMockHIncrBy) invocationsDone() bool {
+	if len(mmHIncrBy.expectations) == 0 && mmHIncrBy.defaultExpectation == nil && mmHIncrBy.mock.funcHIncrBy == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmHIncrBy.mock.afterHIncrByCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmHIncrBy.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// HIncrBy implements redis
+func (mmHIncrBy *RedisMock) HIncrBy(ctx context.Context, key string, field string, incr int64) (err error) {
+	mm_atomic.AddUint64(&mmHIncrBy.beforeHIncrByCounter, 1)
+	defer mm_atomic.AddUint64(&mmHIncrBy.afterHIncrByCounter, 1)
+
+	mmHIncrBy.t.Helper()
+
+	if mmHIncrBy.inspectFuncHIncrBy != nil {
+		mmHIncrBy.inspectFuncHIncrBy(ctx, key, field, incr)
+	}
+
+	mm_params := RedisMockHIncrByParams{ctx, key, field, incr}
+
+	// Record call args
+	mmHIncrBy.HIncrByMock.mutex.Lock()
+	mmHIncrBy.HIncrByMock.callArgs = append(mmHIncrBy.HIncrByMock.callArgs, &mm_params)
+	mmHIncrBy.HIncrByMock.mutex.Unlock()
+
+	for _, e := range mmHIncrBy.HIncrByMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmHIncrBy.HIncrByMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmHIncrBy.HIncrByMock.defaultExpectation.Counter, 1)
+		mm_want := mmHIncrBy.HIncrByMock.defaultExpectation.params
+		mm_want_ptrs := mmHIncrBy.HIncrByMock.defaultExpectation.paramPtrs
+
+		mm_got := RedisMockHIncrByParams{ctx, key, field, incr}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmHIncrBy.t.Errorf("RedisMock.HIncrBy got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHIncrBy.HIncrByMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmHIncrBy.t.Errorf("RedisMock.HIncrBy got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHIncrBy.HIncrByMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+			if mm_want_ptrs.field != nil && !minimock.Equal(*mm_want_ptrs.field, mm_got.field) {
+				mmHIncrBy.t.Errorf("RedisMock.HIncrBy got unexpected parameter field, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHIncrBy.HIncrByMock.defaultExpectation.expectationOrigins.originField, *mm_want_ptrs.field, mm_got.field, minimock.Diff(*mm_want_ptrs.field, mm_got.field))
+			}
+
+			if mm_want_ptrs.incr != nil && !minimock.Equal(*mm_want_ptrs.incr, mm_got.incr) {
+				mmHIncrBy.t.Errorf("RedisMock.HIncrBy got unexpected parameter incr, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHIncrBy.HIncrByMock.defaultExpectation.expectationOrigins.originIncr, *mm_want_ptrs.incr, mm_got.incr, minimock.Diff(*mm_want_ptrs.incr, mm_got.incr))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmHIncrBy.t.Errorf("RedisMock.HIncrBy got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmHIncrBy.HIncrByMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmHIncrBy.HIncrByMock.defaultExpectation.results
+		if mm_results == nil {
+			mmHIncrBy.t.Fatal("No results are set for the RedisMock.HIncrBy")
+		}
+		return (*mm_results).err
+	}
+	if mmHIncrBy.funcHIncrBy != nil {
+		return mmHIncrBy.funcHIncrBy(ctx, key, field, incr)
+	}
+	mmHIncrBy.t.Fatalf("Unexpected call to RedisMock.HIncrBy. %v %v %v %v", ctx, key, field, incr)
+	return
+}
+
+// HIncrByAfterCounter returns a count of finished RedisMock.HIncrBy invocations
+func (mmHIncrBy *RedisMock) HIncrByAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHIncrBy.afterHIncrByCounter)
+}
+
+// HIncrByBeforeCounter returns a count of RedisMock.HIncrBy invocations
+func (mmHIncrBy *RedisMock) HIncrByBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHIncrBy.beforeHIncrByCounter)
+}
+
+// Calls returns a list of arguments used in each call to RedisMock.HIncrBy.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmHIncrBy *mRedisMockHIncrBy) Calls() []*RedisMockHIncrByParams {
+	mmHIncrBy.mutex.RLock()
+
+	argCopy := make([]*RedisMockHIncrByParams, len(mmHIncrBy.callArgs))
+	copy(argCopy, mmHIncrBy.callArgs)
+
+	mmHIncrBy.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockHIncrByDone returns true if the count of the HIncrBy invocations corresponds
+// the number of defined expectations
+func (m *RedisMock) MinimockHIncrByDone() bool {
+	if m.HIncrByMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.HIncrByMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.HIncrByMock.invocationsDone()
+}
+
+// MinimockHIncrByInspect logs each unmet expectation
+func (m *RedisMock) MinimockHIncrByInspect() {
+	for _, e := range m.HIncrByMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to RedisMock.HIncrBy at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterHIncrByCounter := mm_atomic.LoadUint64(&m.afterHIncrByCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.HIncrByMock.defaultExpectation != nil && afterHIncrByCounter < 1 {
+		if m.HIncrByMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to RedisMock.HIncrBy at\n%s", m.HIncrByMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to RedisMock.HIncrBy at\n%s with params: %#v", m.HIncrByMock.defaultExpectation.expectationOrigins.origin, *m.HIncrByMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcHIncrBy != nil && afterHIncrByCounter < 1 {
+		m.t.Errorf("Expected call to RedisMock.HIncrBy at\n%s", m.funcHIncrByOrigin)
+	}
+
+	if !m.HIncrByMock.invocationsDone() && afterHIncrByCounter > 0 {
+		m.t.Errorf("Expected %d calls to RedisMock.HIncrBy at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.HIncrByMock.expectedInvocations), m.HIncrByMock.expectedInvocationsOrigin, afterHIncrByCounter)
+	}
+}
+
 type mRedisMockHSet struct {
 	optional           bool
 	mock               *RedisMock
@@ -1921,6 +2687,8 @@ func (m *RedisMock) MinimockHSetInspect() {
 func (m *RedisMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockDelInspect()
+
 			m.MinimockHDelInspect()
 
 			m.MinimockHExistsInspect()
@@ -1928,6 +2696,8 @@ func (m *RedisMock) MinimockFinish() {
 			m.MinimockHGetInspect()
 
 			m.MinimockHGetAllInspect()
+
+			m.MinimockHIncrByInspect()
 
 			m.MinimockHSetInspect()
 		}
@@ -1953,17 +2723,11 @@ func (m *RedisMock) MinimockWait(timeout mm_time.Duration) {
 func (m *RedisMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockDelDone() &&
 		m.MinimockHDelDone() &&
 		m.MinimockHExistsDone() &&
 		m.MinimockHGetDone() &&
 		m.MinimockHGetAllDone() &&
+		m.MinimockHIncrByDone() &&
 		m.MinimockHSetDone()
-}
-
-func (m *RedisMock) HIncrBy(_ context.Context, _ string, _ string, _ int64) error {
-	return nil
-}
-
-func (m *RedisMock) Del(_ context.Context, _ ...string) error {
-	return nil
 }
