@@ -18,6 +18,7 @@ const (
 	userAuthKey = "user_auth"
 )
 
+// TODO: переделать реализацию на работу с сервисным слоем, чтобы тут напрямую Redis не использовался
 type redis interface {
 	HGet(ctx context.Context, key, field string) (string, error)
 	HSet(ctx context.Context, key string, values ...interface{}) error

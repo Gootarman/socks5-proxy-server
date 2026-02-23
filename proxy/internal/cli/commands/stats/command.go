@@ -16,6 +16,7 @@ const (
 	authDateKey  = "user_auth_date"
 )
 
+// TODO: переделать реализацию на работу с сервисным слоем, чтобы тут напрямую Redis не использовался
 type redis interface {
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 }
@@ -106,6 +107,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 	return nil
 }
 
+// TODO: вынести функцию куда-нибудь в общие утилиты
 func formatBytes(size int64) string {
 	const (
 		kb = 1024
