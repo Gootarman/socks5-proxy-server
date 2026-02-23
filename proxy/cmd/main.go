@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,16 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	tele "gopkg.in/telebot.v3"
 
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/createuser"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/deleteuser"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/generatepass"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/getusers"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/start"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/usersstats"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/handlers/message"
-	mw "github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/middleware"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
+	botbootstrap "github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/bootstrap"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/log"
@@ -34,13 +23,10 @@ import (
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/password"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/proxy"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/redis"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/admin"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
-const (
-	httpClientTimeout = 30 * time.Second
-)
+const telegramBotHTTPClientTimeout = 30 * time.Second
 
 //nolint:gocognit,gocyclo,cyclop,funlen // Startup wiring intentionally keeps orchestration in one place.
 func main() {
@@ -121,7 +107,21 @@ func main() {
 	var b *tele.Bot
 
 	if config.TelegramBotEnabled() {
-		b, err = initBot(redisCli, usersService)
+		b, err = botbootstrap.New(botbootstrap.NewParams{
+			Config: botbootstrap.Config{
+				TelegramAuth:            config.TelegramAPIToken(),
+				UseWebHooks:             config.TelegramUseWebHooks(),
+				PublicURL:               config.PublicURL(),
+				WebHookURL:              config.TelegramWebHookURL(),
+				BotAppPort:              config.BotAppPort(),
+				WebhookTLSCertPath:      config.TelegramWebhookTLSCertPath(),
+				WebhookTLSKeyPath:       config.TelegramWebhookTLSKeyPath(),
+				UpdateProcessingTimeout: config.TelegramUpdateProcessingTimeout(),
+				HTTPClientTimeout:       telegramBotHTTPClientTimeout,
+			},
+			Redis:        redisCli,
+			UsersService: usersService,
+		})
 		if err != nil {
 			log.Error(
 				ctx,
@@ -223,101 +223,6 @@ func main() {
 	}
 
 	log.Info(ctx, "exit from app")
-}
-
-func initBot(redisCli *redis.Redis, usersService *users.Users) (*tele.Bot, error) {
-	poller, err := makeTelegramPoller()
-	if err != nil {
-		return nil, err
-	}
-
-	// Bot
-	botConf := tele.Settings{
-		Token: config.TelegramAPIToken(),
-		Client: &http.Client{
-			Timeout: httpClientTimeout,
-		},
-		OnError: bot.OnErrorCb,
-		Poller:  poller,
-	}
-
-	b, err := tele.NewBot(botConf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new telegram bot: %w", err)
-	}
-
-	// Remove any webhooks in case of long polling used
-	if !config.TelegramUseWebHooks() {
-		if err := b.RemoveWebhook(); err != nil {
-			return nil, fmt.Errorf("failed to remove webhook: %w", err)
-		}
-	}
-
-	adminService := admin.New(redisCli)
-
-	b.Use(
-		mw.SetTimeoutCtx(config.TelegramUpdateProcessingTimeout()),
-		mw.RestrictByAdminUserID(adminService),
-	)
-
-	botStore := store.New(redisCli)
-
-	// Commands
-	b.Handle(start.Command, start.New(botStore).Handle)
-	b.Handle(usersstats.Command, usersstats.New(botStore, usersService).Handle)
-	b.Handle(createuser.Command, createuser.New(botStore).Handle)
-	b.Handle(deleteuser.Command, deleteuser.New(botStore).Handle)
-	b.Handle(getusers.Command, getusers.New(botStore, usersService).Handle)
-	b.Handle(generatepass.Command, generatepass.New().Handle)
-
-	// Messages
-	b.Handle(tele.OnText, message.New(botStore, usersService).Handle)
-
-	return b, nil
-}
-
-func makeTelegramPoller() (tele.Poller, error) {
-	if !config.TelegramUseWebHooks() {
-		return &tele.LongPoller{Timeout: 10 * time.Second}, nil
-	}
-
-	webHookURL, err := buildTelegramWebhookURL()
-	if err != nil {
-		return nil, err
-	}
-
-	webhookEndpoint := &tele.WebhookEndpoint{PublicURL: webHookURL}
-	poller := &tele.Webhook{
-		Listen:   fmt.Sprintf(":%d", config.BotAppPort()),
-		Endpoint: webhookEndpoint,
-	}
-
-	certPath := config.TelegramWebhookTLSCertPath()
-	keyPath := config.TelegramWebhookTLSKeyPath()
-
-	if certPath == "" || keyPath == "" {
-		return poller, nil
-	}
-
-	webhookEndpoint.Cert = certPath
-	poller.TLS = &tele.WebhookTLS{Cert: certPath, Key: keyPath}
-
-	return poller, nil
-}
-
-func buildTelegramWebhookURL() (string, error) {
-	parsedPublicURL, err := url.Parse(config.PublicURL())
-	if err != nil {
-		return "", fmt.Errorf("failed to parse PUBLIC_URL: %w", err)
-	}
-
-	if parsedPublicURL.Scheme == "" || parsedPublicURL.Host == "" {
-		return "", fmt.Errorf("PUBLIC_URL must be an absolute URL")
-	}
-
-	parsedPublicURL.Path = parsedPublicURL.JoinPath(config.TelegramWebHookURL()).Path + config.TelegramAPIToken()
-
-	return parsedPublicURL.String(), nil
 }
 
 func initSchedulerForClearingUsageStats(ctx context.Context, usersService *users.Users) (gocron.Scheduler, error) {
