@@ -30,6 +30,8 @@
 - Prefer small, focused changes; keep Go code idiomatic and Node code consistent with existing style.
 - Do not add dependencies unless needed; update `go.mod`/`go.sum` or `package.json`/lockfiles accordingly.
 - Keep configuration in env vars; see `.env` and `.env.example`.
+- Use minimock for creating mocks (where it makes sense)
+and put command for generating mocks outside the mock (in the test file).
 
 ## Notes for Docker
 - `proxy/Dockerfile` expects a prebuilt binary at `proxy/dist/proxy`.
