@@ -14,7 +14,9 @@ const jsISOStringLayout = "2006-01-02T15:04:05.000Z"
 
 type redis interface {
 	HGet(ctx context.Context, key, field string) (string, error)
+	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HSet(ctx context.Context, key string, values ...interface{}) error
+	HDel(ctx context.Context, key string, fields ...string) error
 	HIncrBy(ctx context.Context, key, field string, incr int64) error
 	Del(ctx context.Context, keys ...string) error
 }

@@ -203,7 +203,7 @@ func (s *Store) GetUsers(ctx context.Context) ([]string, error) {
 	return users, nil
 }
 
-// TODO: такая функция уже есть, заиспользовать одну общую реализацию из утилит
+// TODO: такая функция уже есть, заиспользовать одну общую реализацию из утилит.
 func formatBytes(size int64) string {
 	const (
 		kb = 1024
@@ -223,7 +223,7 @@ func formatBytes(size int64) string {
 	}
 }
 
-// TODO: вынести куда-нибудь в общие утилиты
+// TODO: вынести куда-нибудь в общие утилиты.
 func formatFromNow(raw string) string {
 	if raw == "" {
 		return "-"

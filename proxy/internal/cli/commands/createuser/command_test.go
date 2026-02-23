@@ -6,61 +6,39 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	goredis "github.com/redis/go-redis/v9"
-	"golang.org/x/crypto/bcrypt"
 )
 
-type redisMock struct {
-	hGetValue string
-	hGetErr   error
-	hSetErr   error
-	hSetKey   string
-	hSetData  []interface{}
+type usersMock struct {
+	createErr      error
+	createUsername string
+	createPassword string
 }
 
-func (m *redisMock) HGet(_ context.Context, _, _ string) (string, error) {
-	return m.hGetValue, m.hGetErr
-}
+func (m *usersMock) Create(_ context.Context, username, password string) error {
+	m.createUsername = username
+	m.createPassword = password
 
-func (m *redisMock) HSet(_ context.Context, key string, values ...interface{}) error {
-	m.hSetKey = key
-	m.hSetData = values
-
-	return m.hSetErr
+	return m.createErr
 }
 
 func TestCommandHandler_Handle(t *testing.T) {
 	t.Parallel()
 
 	buf := bytes.NewBuffer(nil)
-	redis := &redisMock{hGetErr: goredis.Nil}
-	h := New(redis, strings.NewReader("alice\nsecret\n"), buf)
+	users := &usersMock{}
+	h := New(users, strings.NewReader("alice\nsecret\n"), buf)
 
 	err := h.Handle(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if redis.hSetKey != userAuthKey {
-		t.Fatalf("expected key %q, got %q", userAuthKey, redis.hSetKey)
+	if users.createUsername != "alice" {
+		t.Fatalf("expected username alice, got %q", users.createUsername)
 	}
 
-	if len(redis.hSetData) != 2 {
-		t.Fatalf("expected two hset args, got %d", len(redis.hSetData))
-	}
-
-	if redis.hSetData[0] != "alice" {
-		t.Fatalf("expected username alice, got %v", redis.hSetData[0])
-	}
-
-	hashValue, ok := redis.hSetData[1].(string)
-	if !ok {
-		t.Fatalf("expected hash to be string, got %T", redis.hSetData[1])
-	}
-
-	if err = bcrypt.CompareHashAndPassword([]byte(hashValue), []byte("secret")); err != nil {
-		t.Fatalf("expected password to be hashed, compare failed: %v", err)
+	if users.createPassword != "secret" {
+		t.Fatalf("expected password secret, got %q", users.createPassword)
 	}
 
 	if !strings.Contains(buf.String(), "User successfully created.") {
@@ -68,21 +46,10 @@ func TestCommandHandler_Handle(t *testing.T) {
 	}
 }
 
-func TestCommandHandler_HandleUserExists(t *testing.T) {
+func TestCommandHandler_HandleCreateError(t *testing.T) {
 	t.Parallel()
 
-	h := New(&redisMock{hGetValue: "already-hashed"}, strings.NewReader("alice\nsecret\n"), bytes.NewBuffer(nil))
-
-	err := h.Handle(context.Background())
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestCommandHandler_HandleHGetError(t *testing.T) {
-	t.Parallel()
-
-	h := New(&redisMock{hGetErr: errors.New("boom")}, strings.NewReader("alice\nsecret\n"), bytes.NewBuffer(nil))
+	h := New(&usersMock{createErr: errors.New("boom")}, strings.NewReader("alice\nsecret\n"), bytes.NewBuffer(nil))
 
 	err := h.Handle(context.Background())
 	if err == nil {

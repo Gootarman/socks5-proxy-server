@@ -5,74 +5,45 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"strconv"
 	"text/tabwriter"
+
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 const (
-	command      = "users-stats"
-	dataUsageKey = "user_usage_data"
-	authDateKey  = "user_auth_date"
+	command = "users-stats"
 )
 
-// TODO: переделать реализацию на работу с сервисным слоем, чтобы тут напрямую Redis не использовался
-type redis interface {
-	HGetAll(ctx context.Context, key string) (map[string]string, error)
+type userService interface {
+	GetStats(ctx context.Context) ([]users.Stat, error)
 }
 
 type CommandHandler struct {
-	redis redis
+	users userService
 	out   io.Writer
 }
 
-func New(redis redis, out io.Writer) *CommandHandler {
+func New(users userService, out io.Writer) *CommandHandler {
 	if out == nil {
 		out = os.Stdout
 	}
 
-	return &CommandHandler{redis: redis, out: out}
+	return &CommandHandler{users: users, out: out}
 }
 
 func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
-//nolint:gocognit,gocyclo,cyclop // Printing formatted stats table requires a few branching steps.
 func (h *CommandHandler) Handle(ctx context.Context) error {
-	if h.redis == nil {
-		return fmt.Errorf("[users-stats] redis dependency is not configured")
+	if h.users == nil {
+		return fmt.Errorf("[users-stats] user service dependency is not configured")
 	}
 
-	dataUsage, err := h.redis.HGetAll(ctx, dataUsageKey)
+	stats, err := h.users.GetStats(ctx)
 	if err != nil {
 		return fmt.Errorf("[users-stats] failed to get usage stats: %w", err)
 	}
-
-	lastLogin, err := h.redis.HGetAll(ctx, authDateKey)
-	if err != nil {
-		return fmt.Errorf("[users-stats] failed to get last login stats: %w", err)
-	}
-
-	type userStat struct {
-		Username string
-		Usage    int64
-	}
-
-	stats := make([]userStat, 0, len(dataUsage))
-
-	for username, usageStr := range dataUsage {
-		usage, parseErr := strconv.ParseInt(usageStr, 10, 64)
-		if parseErr != nil {
-			return fmt.Errorf("[users-stats] failed to parse usage for user %s: %w", username, parseErr)
-		}
-
-		stats = append(stats, userStat{Username: username, Usage: usage})
-	}
-
-	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Usage > stats[j].Usage
-	})
 
 	header := "#\tUsername\tData usage (in bytes)\tData usage (human readable)\tLast login"
 
@@ -82,7 +53,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 	}
 
 	for i, stat := range stats {
-		loginDate := lastLogin[stat.Username]
+		loginDate := stat.LastAuth
 		if loginDate == "" {
 			loginDate = "-"
 		}
@@ -92,8 +63,8 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 			"%d\t%s\t%d\t%s\t%s\n",
 			i+1,
 			stat.Username,
+			stat.UsageBytes,
 			stat.Usage,
-			formatBytes(stat.Usage),
 			loginDate,
 		); err != nil {
 			return fmt.Errorf("[users-stats] failed to print row: %w", err)
@@ -105,24 +76,4 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// TODO: вынести функцию куда-нибудь в общие утилиты
-func formatBytes(size int64) string {
-	const (
-		kb = 1024
-		mb = 1024 * kb
-		gb = 1024 * mb
-	)
-
-	switch {
-	case size > gb:
-		return fmt.Sprintf("%.2f GB", float64(size)/float64(gb))
-	case size > mb:
-		return fmt.Sprintf("%.2f MB", float64(size)/float64(mb))
-	case size > kb:
-		return fmt.Sprintf("%.2f KB", float64(size)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", size)
-	}
 }

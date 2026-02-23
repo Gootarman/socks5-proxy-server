@@ -3,11 +3,11 @@ package createadmin
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
+
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli/commands/common"
 )
 
 const (
@@ -66,10 +66,5 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 }
 
 func (h *CommandHandler) readInputLine() (string, error) {
-	line, err := h.in.ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", err
-	}
-
-	return strings.TrimSpace(line), nil
+	return common.ReadInputLine(h.in)
 }

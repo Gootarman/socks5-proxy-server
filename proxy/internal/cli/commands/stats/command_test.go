@@ -6,33 +6,26 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
-type redisMock struct {
-	data map[string]map[string]string
-	err  map[string]error
+type usersMock struct {
+	stats    []users.Stat
+	statsErr error
 }
 
-func (r *redisMock) HGetAll(_ context.Context, key string) (map[string]string, error) {
-	if err, ok := r.err[key]; ok {
-		return nil, err
-	}
-
-	return r.data[key], nil
+func (m *usersMock) GetStats(_ context.Context) ([]users.Stat, error) {
+	return m.stats, m.statsErr
 }
 
 func TestCommandHandler_Handle(t *testing.T) {
 	t.Parallel()
 
 	buf := bytes.NewBuffer(nil)
-	h := New(&redisMock{data: map[string]map[string]string{
-		dataUsageKey: {
-			"alice": "1025",
-			"bob":   "256",
-		},
-		authDateKey: {
-			"alice": "2026-01-01T10:00:00Z",
-		},
+	h := New(&usersMock{stats: []users.Stat{
+		{Username: "alice", UsageBytes: 1025, Usage: "1.00 KB", LastAuth: "2026-01-01T10:00:00Z"},
+		{Username: "bob", UsageBytes: 256, Usage: "256 B"},
 	}}, buf)
 
 	err := h.Handle(context.Background())
@@ -58,39 +51,13 @@ func TestCommandHandler_Handle(t *testing.T) {
 	}
 }
 
-func TestCommandHandler_HandleRedisError(t *testing.T) {
+func TestCommandHandler_HandleUsersServiceError(t *testing.T) {
 	t.Parallel()
 
-	h := New(&redisMock{err: map[string]error{dataUsageKey: errors.New("boom")}}, bytes.NewBuffer(nil))
+	h := New(&usersMock{statsErr: errors.New("boom")}, bytes.NewBuffer(nil))
 
 	err := h.Handle(context.Background())
 	if err == nil {
 		t.Fatal("expected error")
-	}
-}
-
-func TestFormatBytes(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		size int64
-		want string
-	}{
-		{name: "bytes", size: 1024, want: "1024 B"},
-		{name: "kb", size: 1025, want: "1.00 KB"},
-		{name: "mb", size: 1048577, want: "1.00 MB"},
-		{name: "gb", size: 1073741825, want: "1.00 GB"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := formatBytes(tt.size)
-			if got != tt.want {
-				t.Fatalf("expected %q, got %q", tt.want, got)
-			}
-		})
 	}
 }

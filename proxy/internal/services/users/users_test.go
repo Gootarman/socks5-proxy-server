@@ -9,7 +9,9 @@ import (
 
 type redisStub struct {
 	hgetFn    func(ctx context.Context, key, field string) (string, error)
+	hgetAllFn func(ctx context.Context, key string) (map[string]string, error)
 	hsetFn    func(ctx context.Context, key string, values ...interface{}) error
+	hdelFn    func(ctx context.Context, key string, fields ...string) error
 	hincrByFn func(ctx context.Context, key, field string, incr int64) error
 	delFn     func(ctx context.Context, keys ...string) error
 }
@@ -20,6 +22,22 @@ func (r *redisStub) HGet(ctx context.Context, key, field string) (string, error)
 
 func (r *redisStub) HSet(ctx context.Context, key string, values ...interface{}) error {
 	return r.hsetFn(ctx, key, values...)
+}
+
+func (r *redisStub) HGetAll(ctx context.Context, key string) (map[string]string, error) {
+	if r.hgetAllFn == nil {
+		return map[string]string{}, nil
+	}
+
+	return r.hgetAllFn(ctx, key)
+}
+
+func (r *redisStub) HDel(ctx context.Context, key string, fields ...string) error {
+	if r.hdelFn == nil {
+		return nil
+	}
+
+	return r.hdelFn(ctx, key, fields...)
 }
 
 func (r *redisStub) HIncrBy(ctx context.Context, key, field string, incr int64) error {

@@ -39,7 +39,7 @@ func (h *Handler) Handle(c tele.Context) error {
 	return c.Send(pass)
 }
 
-// TODO: вынести в существующий пакет internal/password
+// TODO: вынести в существующий пакет internal/password.
 func Generate(length int) (string, error) {
 	if length < 3 {
 		length = 3

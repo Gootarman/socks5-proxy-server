@@ -12,6 +12,7 @@ import (
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/config"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/log"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/admin"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type redis interface {
@@ -19,6 +20,8 @@ type redis interface {
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HSet(ctx context.Context, key string, values ...interface{}) error
 	HDel(ctx context.Context, key string, fields ...string) error
+	HIncrBy(ctx context.Context, key, field string, incr int64) error
+	Del(ctx context.Context, keys ...string) error
 	HExists(ctx context.Context, key, field string) (bool, error)
 }
 
@@ -48,13 +51,14 @@ func HandleCLICommand(ctx context.Context, deps *CommandsDeps) (handled bool) {
 	)
 
 	adminService := admin.New(deps.Redis)
+	usersService := users.New(deps.Redis)
 
 	commands := []commandHandler{
 		createadmin.New(adminService, os.Stdin, os.Stdout),
-		createuser.New(deps.Redis, os.Stdin, os.Stdout),
+		createuser.New(usersService, os.Stdin, os.Stdout),
 		deleteadmin.New(adminService, os.Stdin, os.Stdout),
-		deleteuser.New(deps.Redis, os.Stdin, os.Stdout),
-		stats.New(deps.Redis, os.Stdout),
+		deleteuser.New(usersService, os.Stdin, os.Stdout),
+		stats.New(usersService, os.Stdout),
 	}
 
 	for i := range commands {

@@ -48,7 +48,6 @@ const (
 func main() {
 	_ = godotenv.Load()
 
-	// TODO: implement graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 

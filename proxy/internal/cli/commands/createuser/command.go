@@ -3,34 +3,28 @@ package createuser
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
-	goredis "github.com/redis/go-redis/v9"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/cli/commands/common"
 )
 
 const (
-	command     = "create-user"
-	userAuthKey = "user_auth"
+	command = "create-user"
 )
 
-// TODO: переделать реализацию на работу с сервисным слоем, чтобы тут напрямую Redis не использовался
-type redis interface {
-	HGet(ctx context.Context, key, field string) (string, error)
-	HSet(ctx context.Context, key string, values ...interface{}) error
+type userService interface {
+	Create(ctx context.Context, username, password string) error
 }
 
 type CommandHandler struct {
-	redis redis
+	users userService
 	in    *bufio.Reader
 	out   io.Writer
 }
 
-func New(redis redis, in io.Reader, out io.Writer) *CommandHandler {
+func New(users userService, in io.Reader, out io.Writer) *CommandHandler {
 	if in == nil {
 		in = os.Stdin
 	}
@@ -39,17 +33,16 @@ func New(redis redis, in io.Reader, out io.Writer) *CommandHandler {
 		out = os.Stdout
 	}
 
-	return &CommandHandler{redis: redis, in: bufio.NewReader(in), out: out}
+	return &CommandHandler{users: users, in: bufio.NewReader(in), out: out}
 }
 
 func (h *CommandHandler) CanHandle(_ context.Context, commandName string) bool {
 	return commandName == command
 }
 
-//nolint:cyclop,gocyclo // CLI prompt flow is kept linear for readability.
 func (h *CommandHandler) Handle(ctx context.Context) error {
-	if h.redis == nil {
-		return fmt.Errorf("[create-user] redis dependency is not configured")
+	if h.users == nil {
+		return fmt.Errorf("[create-user] user service dependency is not configured")
 	}
 
 	if _, err := fmt.Fprint(h.out, "Input username and press Enter: "); err != nil {
@@ -70,18 +63,7 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 		return fmt.Errorf("[create-user] failed to read password: %w", err)
 	}
 
-	if _, err = h.redis.HGet(ctx, userAuthKey, username); err == nil {
-		return fmt.Errorf("[create-user] user with provided username already exists")
-	} else if !errors.Is(err, goredis.Nil) {
-		return fmt.Errorf("[create-user] failed to check if user exists: %w", err)
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("[create-user] failed to hash password: %w", err)
-	}
-
-	if err = h.redis.HSet(ctx, userAuthKey, username, string(hash)); err != nil {
+	if err = h.users.Create(ctx, username, password); err != nil {
 		return fmt.Errorf("[create-user] failed to create user: %w", err)
 	}
 
@@ -93,10 +75,5 @@ func (h *CommandHandler) Handle(ctx context.Context) error {
 }
 
 func (h *CommandHandler) readInputLine() (string, error) {
-	line, err := h.in.ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", err
-	}
-
-	return strings.TrimSpace(line), nil
+	return common.ReadInputLine(h.in)
 }

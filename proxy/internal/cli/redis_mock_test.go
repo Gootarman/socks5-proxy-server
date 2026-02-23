@@ -1959,3 +1959,11 @@ func (m *RedisMock) minimockDone() bool {
 		m.MinimockHGetAllDone() &&
 		m.MinimockHSetDone()
 }
+
+func (m *RedisMock) HIncrBy(_ context.Context, _ string, _ string, _ int64) error {
+	return nil
+}
+
+func (m *RedisMock) Del(_ context.Context, _ ...string) error {
+	return nil
+}
