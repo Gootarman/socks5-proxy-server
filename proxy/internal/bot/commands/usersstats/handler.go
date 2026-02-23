@@ -9,18 +9,28 @@ import (
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
+	formatter "github.com/nskondratev/socks5-proxy-server/proxy/internal/format"
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 const Command = "/users_stats"
 
 type stateStatsStore interface {
 	SetUserState(ctx context.Context, username string, state store.UserState) error
-	GetUsersStats(ctx context.Context) ([]store.UserStat, error)
 }
 
-type Handler struct{ store stateStatsStore }
+type usersStatsService interface {
+	GetStats(ctx context.Context) ([]usersservice.Stat, error)
+}
 
-func New(store stateStatsStore) *Handler { return &Handler{store: store} }
+type Handler struct {
+	store stateStatsStore
+	users usersStatsService
+}
+
+func New(store stateStatsStore, users usersStatsService) *Handler {
+	return &Handler{store: store, users: users}
+}
 
 func (h *Handler) Handle(c tele.Context) error {
 	sender := c.Sender()
@@ -30,7 +40,7 @@ func (h *Handler) Handle(c tele.Context) error {
 
 	ctx := bot.GetContext(c)
 
-	stats, err := h.store.GetUsersStats(ctx)
+	stats, err := h.users.GetStats(ctx)
 	if err != nil {
 		return err
 	}
@@ -41,8 +51,11 @@ func (h *Handler) Handle(c tele.Context) error {
 	} else {
 		parts := make([]string, 0, len(stats))
 
-		for _, s := range stats {
-			parts = append(parts, fmt.Sprintf("<b>%d.</b> %s (%s): %s", s.Num, s.Username, s.LastAuth, s.Usage))
+		for i, s := range stats {
+			parts = append(
+				parts,
+				fmt.Sprintf("<b>%d.</b> %s (%s): %s", i+1, s.Username, formatter.FromNow(s.LastAuth), s.Usage),
+			)
 		}
 
 		msg += strings.Join(parts, "\n")

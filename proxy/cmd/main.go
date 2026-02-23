@@ -162,7 +162,7 @@ func main() {
 	var b *tele.Bot
 
 	if config.TelegramBotEnabled() {
-		b, err = initBot(redisCli)
+		b, err = initBot(redisCli, usersService)
 		if err != nil {
 			log.Error(
 				ctx,
@@ -283,7 +283,7 @@ func getUsernameFromRequest(request *socks5.Request) (string, bool) {
 	return username, true
 }
 
-func initBot(redisCli *redis.Redis) (*tele.Bot, error) {
+func initBot(redisCli *redis.Redis, usersService *users.Users) (*tele.Bot, error) {
 	poller, err := makeTelegramPoller()
 	if err != nil {
 		return nil, err
@@ -322,14 +322,14 @@ func initBot(redisCli *redis.Redis) (*tele.Bot, error) {
 
 	// Commands
 	b.Handle(start.Command, start.New(botStore).Handle)
-	b.Handle(usersstats.Command, usersstats.New(botStore).Handle)
+	b.Handle(usersstats.Command, usersstats.New(botStore, usersService).Handle)
 	b.Handle(createuser.Command, createuser.New(botStore).Handle)
 	b.Handle(deleteuser.Command, deleteuser.New(botStore).Handle)
-	b.Handle(getusers.Command, getusers.New(botStore).Handle)
+	b.Handle(getusers.Command, getusers.New(botStore, usersService).Handle)
 	b.Handle(generatepass.Command, generatepass.New().Handle)
 
 	// Messages
-	b.Handle(tele.OnText, message.New(botStore).Handle)
+	b.Handle(tele.OnText, message.New(botStore, usersService).Handle)
 
 	return b, nil
 }

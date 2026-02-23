@@ -1,11 +1,10 @@
 package generatepass
 
 import (
-	"crypto/rand"
-	"math/big"
 	"strconv"
 	"strings"
 
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/password"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -13,9 +12,6 @@ const Command = "/generate_pass"
 
 const (
 	defaultLen = 10
-	lowers     = "abcdefghijklmnopqrstuvwxyz"
-	uppers     = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits     = "0123456789"
 )
 
 type Handler struct{}
@@ -31,41 +27,10 @@ func (h *Handler) Handle(c tele.Context) error {
 		}
 	}
 
-	pass, err := Generate(ln)
+	pass, err := password.Generate(ln)
 	if err != nil {
 		return err
 	}
 
 	return c.Send(pass)
-}
-
-// TODO: вынести в существующий пакет internal/password.
-func Generate(length int) (string, error) {
-	if length < 3 {
-		length = 3
-	}
-
-	all := lowers + uppers + digits
-	result := []byte{lowers[0], uppers[0], digits[0]}
-
-	for len(result) < length {
-		i, err := rand.Int(rand.Reader, big.NewInt(int64(len(all))))
-		if err != nil {
-			return "", err
-		}
-
-		result = append(result, all[i.Int64()])
-	}
-
-	for i := len(result) - 1; i > 0; i-- {
-		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
-		if err != nil {
-			return "", err
-		}
-
-		j := int(jBig.Int64())
-		result[i], result[j] = result[j], result[i]
-	}
-
-	return string(result), nil
 }

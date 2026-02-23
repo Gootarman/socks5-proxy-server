@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 
+	formatter "github.com/nskondratev/socks5-proxy-server/proxy/internal/format"
 	goredis "github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -91,7 +92,7 @@ func (u *Users) GetStats(ctx context.Context) ([]Stat, error) {
 		stats = append(stats, Stat{
 			Username:   raw.Username,
 			UsageBytes: raw.Usage,
-			Usage:      formatBytes(raw.Usage),
+			Usage:      formatter.Bytes(raw.Usage),
 			LastAuth:   lastLogin[raw.Username],
 		})
 	}
@@ -99,21 +100,31 @@ func (u *Users) GetStats(ctx context.Context) ([]Stat, error) {
 	return stats, nil
 }
 
-func formatBytes(size int64) string {
-	const (
-		kb = 1024
-		mb = 1024 * kb
-		gb = 1024 * mb
-	)
-
-	switch {
-	case size > gb:
-		return fmt.Sprintf("%.2f GB", float64(size)/float64(gb))
-	case size > mb:
-		return fmt.Sprintf("%.2f MB", float64(size)/float64(mb))
-	case size > kb:
-		return fmt.Sprintf("%.2f KB", float64(size)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", size)
+func (u *Users) IsUsernameFree(ctx context.Context, username string) (bool, error) {
+	_, err := u.redis.HGet(ctx, userAuthKey, username)
+	if errors.Is(err, goredis.Nil) {
+		return true, nil
 	}
+
+	if err != nil {
+		return false, fmt.Errorf("[users] failed to check if user exists: %w", err)
+	}
+
+	return false, nil
+}
+
+func (u *Users) GetUsers(ctx context.Context) ([]string, error) {
+	usersMap, err := u.redis.HGetAll(ctx, userAuthKey)
+	if err != nil {
+		return nil, fmt.Errorf("[users] failed to get users: %w", err)
+	}
+
+	users := make([]string, 0, len(usersMap))
+	for user := range usersMap {
+		users = append(users, user)
+	}
+
+	sort.Strings(users)
+
+	return users, nil
 }

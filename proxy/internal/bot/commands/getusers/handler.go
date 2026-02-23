@@ -15,12 +15,20 @@ const Command = "/get_users"
 
 type usersStore interface {
 	SetUserState(ctx context.Context, username string, state store.UserState) error
+}
+
+type usersService interface {
 	GetUsers(ctx context.Context) ([]string, error)
 }
 
-type Handler struct{ store usersStore }
+type Handler struct {
+	store usersStore
+	users usersService
+}
 
-func New(store usersStore) *Handler { return &Handler{store: store} }
+func New(store usersStore, users usersService) *Handler {
+	return &Handler{store: store, users: users}
+}
 
 func (h *Handler) Handle(c tele.Context) error {
 	sender := c.Sender()
@@ -35,7 +43,7 @@ func (h *Handler) Handle(c tele.Context) error {
 		return err
 	}
 
-	users, err := h.store.GetUsers(ctx)
+	users, err := h.users.GetUsers(ctx)
 	if err != nil {
 		return err
 	}

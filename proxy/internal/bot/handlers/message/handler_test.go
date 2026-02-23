@@ -1,6 +1,7 @@
 package message
 
 //go:generate minimock -g -i github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/handlers/message.storeI -o store_mock_test.go -n StoreIMock -p message
+//go:generate minimock -g -i github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/handlers/message.usersService -o users_service_mock_test.go -n UsersServiceMock -p message
 
 import (
 	"context"
@@ -67,7 +68,9 @@ func TestHandler_Handle_NoStateProcessing(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
-		h := New(s)
+
+		u := NewUsersServiceMock(t)
+		h := New(s, u)
 		err := h.Handle(&contextStub{text: "/start", sender: &tele.User{Username: "admin"}})
 		require.NoError(t, err)
 	})
@@ -76,7 +79,9 @@ func TestHandler_Handle_NoStateProcessing(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
-		h := New(s)
+
+		u := NewUsersServiceMock(t)
+		h := New(s, u)
 		err := h.Handle(&contextStub{text: "hello"})
 		require.NoError(t, err)
 	})
@@ -85,7 +90,9 @@ func TestHandler_Handle_NoStateProcessing(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
-		h := New(s)
+
+		u := NewUsersServiceMock(t)
+		h := New(s, u)
 		err := h.Handle(&contextStub{text: "hello", sender: &tele.User{Username: ""}})
 		require.NoError(t, err)
 	})
@@ -94,9 +101,11 @@ func TestHandler_Handle_NoStateProcessing(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(nil, errors.New("boom"))
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(&contextStub{text: "hello", sender: &tele.User{Username: "admin"}})
 		require.Error(t, err)
 		assert.EqualError(t, err, "boom")
@@ -106,9 +115,11 @@ func TestHandler_Handle_NoStateProcessing(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(nil, nil)
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(&contextStub{text: "hello", sender: &tele.User{Username: "admin"}})
 		require.NoError(t, err)
 	})
@@ -118,11 +129,13 @@ func TestHandler_Handle_IdleState(t *testing.T) {
 	t.Parallel()
 
 	s := NewStoreIMock(t)
+
+	u := NewUsersServiceMock(t)
 	s.GetUserStateMock.Return(&store.UserState{State: store.StateIdle, Data: map[string]string{}}, nil)
 
 	c := &contextStub{text: "hello", sender: &tele.User{Username: "admin"}}
 
-	h := New(s)
+	h := New(s, u)
 	err := h.Handle(c)
 	require.NoError(t, err)
 	require.Len(t, c.sendCall, 1)
@@ -138,11 +151,13 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
 
 		c := &contextStub{text: "  ", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -153,12 +168,14 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, errors.New("lookup failed"))
+		u.IsUsernameFreeMock.Return(false, errors.New("lookup failed"))
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "lookup failed")
@@ -168,12 +185,14 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, nil)
+		u.IsUsernameFreeMock.Return(false, nil)
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -184,8 +203,10 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{State: store.StateCreateUserEnterUsername}, nil)
-		s.IsUsernameFreeMock.Return(true, nil)
+		u.IsUsernameFreeMock.Return(true, nil)
 		s.SetUserStateMock.Set(func(_ context.Context, username string, state store.UserState) error {
 			assert.Equal(t, "admin", username)
 			assert.Equal(t, store.StateCreateUserEnterPassword, state.State)
@@ -195,7 +216,7 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -209,6 +230,7 @@ func TestHandler_Handle_CreateUserEnterUsername(t *testing.T) {
 func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 	t.Run("empty password", func(t *testing.T) {
 		s := NewStoreIMock(t)
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
 			State: store.StateCreateUserEnterPassword,
 			Data:  map[string]string{"username": "proxy-user"},
@@ -216,7 +238,7 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 
 		c := &contextStub{text: "", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -225,15 +247,16 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 
 	t.Run("create user error", func(t *testing.T) {
 		s := NewStoreIMock(t)
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
 			State: store.StateCreateUserEnterPassword,
 			Data:  map[string]string{"username": "proxy-user"},
 		}, nil)
-		s.CreateUserMock.Return(errors.New("create failed"))
+		u.CreateMock.Return(errors.New("create failed"))
 
 		c := &contextStub{text: "pass", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "create failed")
@@ -241,15 +264,16 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 
 	t.Run("create user already exists", func(t *testing.T) {
 		s := NewStoreIMock(t)
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
 			State: store.StateCreateUserEnterPassword,
 			Data:  map[string]string{"username": "proxy-user"},
 		}, nil)
-		s.CreateUserMock.Return(usersservice.ErrUserExists)
+		u.CreateMock.Return(usersservice.ErrUserExists)
 
 		c := &contextStub{text: "pass", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -258,16 +282,17 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 
 	t.Run("set state error", func(t *testing.T) {
 		s := NewStoreIMock(t)
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
 			State: store.StateCreateUserEnterPassword,
 			Data:  map[string]string{"username": "proxy-user"},
 		}, nil)
-		s.CreateUserMock.Return(nil)
+		u.CreateMock.Return(nil)
 		s.SetUserStateMock.Return(errors.New("state failed"))
 
 		c := &contextStub{text: "pass", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "state failed")
@@ -275,11 +300,12 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		s := NewStoreIMock(t)
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(&store.UserState{
 			State: store.StateCreateUserEnterPassword,
 			Data:  map[string]string{"username": "proxy-user"},
 		}, nil)
-		s.CreateUserMock.Expect(context.Background(), "proxy-user", "pass").Return(nil)
+		u.CreateMock.Expect(context.Background(), "proxy-user", "pass").Return(nil)
 		s.SetUserStateMock.Return(nil)
 
 		c := &contextStub{text: "pass", sender: &tele.User{Username: "admin"}}
@@ -288,7 +314,7 @@ func TestHandler_Handle_CreateUserEnterPassword(t *testing.T) {
 		t.Setenv("PUBLIC_URL", "https://proxy.example.com/")
 		t.Setenv("APP_PORT", "1080")
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -334,12 +360,14 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, errors.New("lookup failed"))
+		u.IsUsernameFreeMock.Return(false, errors.New("lookup failed"))
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "lookup failed")
@@ -349,12 +377,14 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(true, nil)
+		u.IsUsernameFreeMock.Return(true, nil)
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -365,13 +395,15 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, nil)
-		s.DeleteUserMock.Return(errors.New("delete failed"))
+		u.IsUsernameFreeMock.Return(false, nil)
+		u.DeleteMock.Return(errors.New("delete failed"))
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "delete failed")
@@ -381,13 +413,15 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, nil)
-		s.DeleteUserMock.Return(usersservice.ErrUserNotFound)
+		u.IsUsernameFreeMock.Return(false, nil)
+		u.DeleteMock.Return(usersservice.ErrUserNotFound)
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -398,14 +432,16 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, nil)
-		s.DeleteUserMock.Return(nil)
+		u.IsUsernameFreeMock.Return(false, nil)
+		u.DeleteMock.Return(nil)
 		s.SetUserStateMock.Return(errors.New("state failed"))
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "state failed")
@@ -415,14 +451,16 @@ func TestHandler_Handle_DeleteUserEnterUsername(t *testing.T) {
 		t.Parallel()
 
 		s := NewStoreIMock(t)
+
+		u := NewUsersServiceMock(t)
 		s.GetUserStateMock.Return(baseState, nil)
-		s.IsUsernameFreeMock.Return(false, nil)
-		s.DeleteUserMock.Return(nil)
+		u.IsUsernameFreeMock.Return(false, nil)
+		u.DeleteMock.Return(nil)
 		s.SetUserStateMock.Return(nil)
 
 		c := &contextStub{text: "proxy-user", sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, u)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)

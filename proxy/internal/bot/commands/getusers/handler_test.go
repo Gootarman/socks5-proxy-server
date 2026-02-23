@@ -54,6 +54,18 @@ func (c *contextStub) Get(key string) interface{} {
 	return c.values[key]
 }
 
+type usersServiceMock struct {
+	getUsers func(ctx context.Context) ([]string, error)
+}
+
+func (m *usersServiceMock) GetUsers(ctx context.Context) ([]string, error) {
+	if m.getUsers == nil {
+		return nil, nil
+	}
+
+	return m.getUsers(ctx)
+}
+
 func TestHandler_Handle(t *testing.T) {
 	t.Parallel()
 
@@ -61,7 +73,7 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewUsersStoreMock(t)
-		h := New(s)
+		h := New(s, &usersServiceMock{})
 		err := h.Handle(&contextStub{})
 		require.NoError(t, err)
 	})
@@ -70,7 +82,7 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewUsersStoreMock(t)
-		h := New(s)
+		h := New(s, &usersServiceMock{})
 		err := h.Handle(&contextStub{sender: &tele.User{Username: ""}})
 		require.NoError(t, err)
 	})
@@ -80,11 +92,12 @@ func TestHandler_Handle(t *testing.T) {
 
 		s := NewUsersStoreMock(t)
 		s.SetUserStateMock.Return(errors.New("save failed"))
+		users := &usersServiceMock{}
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 		bot.SetContext(c, context.Background())
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "save failed")
@@ -95,11 +108,15 @@ func TestHandler_Handle(t *testing.T) {
 
 		s := NewUsersStoreMock(t)
 		s.SetUserStateMock.Return(nil)
-		s.GetUsersMock.Return(nil, errors.New("read failed"))
+		users := &usersServiceMock{
+			getUsers: func(_ context.Context) ([]string, error) {
+				return nil, errors.New("read failed")
+			},
+		}
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "read failed")
@@ -115,11 +132,15 @@ func TestHandler_Handle(t *testing.T) {
 			assert.Equal(t, map[string]string{}, state.Data)
 			return nil
 		})
-		s.GetUsersMock.Return([]string{}, nil)
+		users := &usersServiceMock{
+			getUsers: func(_ context.Context) ([]string, error) {
+				return []string{}, nil
+			},
+		}
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -134,11 +155,15 @@ func TestHandler_Handle(t *testing.T) {
 
 		s := NewUsersStoreMock(t)
 		s.SetUserStateMock.Return(nil)
-		s.GetUsersMock.Return([]string{"alice", "bob"}, nil)
+		users := &usersServiceMock{
+			getUsers: func(_ context.Context) ([]string, error) {
+				return []string{"alice", "bob"}, nil
+			},
+		}
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)

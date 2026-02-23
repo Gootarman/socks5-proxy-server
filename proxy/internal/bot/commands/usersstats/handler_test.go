@@ -14,6 +14,7 @@ import (
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
+	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type sendCall struct {
@@ -54,6 +55,18 @@ func (c *contextStub) Get(key string) interface{} {
 	return c.values[key]
 }
 
+type usersStatsServiceMock struct {
+	getStats func(ctx context.Context) ([]usersservice.Stat, error)
+}
+
+func (m *usersStatsServiceMock) GetStats(ctx context.Context) ([]usersservice.Stat, error) {
+	if m.getStats == nil {
+		return nil, nil
+	}
+
+	return m.getStats(ctx)
+}
+
 func TestHandler_Handle(t *testing.T) {
 	t.Parallel()
 
@@ -61,7 +74,7 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		h := New(s)
+		h := New(s, &usersStatsServiceMock{})
 		err := h.Handle(&contextStub{})
 		require.NoError(t, err)
 	})
@@ -70,7 +83,7 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		h := New(s)
+		h := New(s, &usersStatsServiceMock{})
 		err := h.Handle(&contextStub{sender: &tele.User{Username: ""}})
 		require.NoError(t, err)
 	})
@@ -79,12 +92,16 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		s.GetUsersStatsMock.Return(nil, errors.New("read failed"))
+		users := &usersStatsServiceMock{
+			getStats: func(_ context.Context) ([]usersservice.Stat, error) {
+				return nil, errors.New("read failed")
+			},
+		}
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 		bot.SetContext(c, context.Background())
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "read failed")
@@ -94,12 +111,16 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		s.GetUsersStatsMock.Return(nil, nil)
+		users := &usersStatsServiceMock{
+			getStats: func(_ context.Context) ([]usersservice.Stat, error) {
+				return nil, nil
+			},
+		}
 		s.SetUserStateMock.Return(errors.New("save failed"))
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.Error(t, err)
 		assert.EqualError(t, err, "save failed")
@@ -109,7 +130,11 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		s.GetUsersStatsMock.Return([]store.UserStat{}, nil)
+		users := &usersStatsServiceMock{
+			getStats: func(_ context.Context) ([]usersservice.Stat, error) {
+				return []usersservice.Stat{}, nil
+			},
+		}
 		s.SetUserStateMock.Set(func(_ context.Context, username string, state store.UserState) error {
 			assert.Equal(t, "admin", username)
 			assert.Equal(t, store.StateIdle, state.State)
@@ -119,7 +144,7 @@ func TestHandler_Handle(t *testing.T) {
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
@@ -130,19 +155,23 @@ func TestHandler_Handle(t *testing.T) {
 		t.Parallel()
 
 		s := NewStateStatsStoreMock(t)
-		s.GetUsersStatsMock.Return([]store.UserStat{
-			{Num: 1, Username: "alice", LastAuth: "just now", Usage: "10 MB"},
-			{Num: 2, Username: "bob", LastAuth: "-", Usage: "1 MB"},
-		}, nil)
+		users := &usersStatsServiceMock{
+			getStats: func(_ context.Context) ([]usersservice.Stat, error) {
+				return []usersservice.Stat{
+					{Username: "alice", LastAuth: "2026-02-23T10:00:00.000Z", Usage: "10 MB"},
+					{Username: "bob", LastAuth: "", Usage: "1 MB"},
+				}, nil
+			},
+		}
 		s.SetUserStateMock.Return(nil)
 
 		c := &contextStub{sender: &tele.User{Username: "admin"}}
 
-		h := New(s)
+		h := New(s, users)
 		err := h.Handle(c)
 		require.NoError(t, err)
 		require.Len(t, c.sendCall, 1)
-		assert.Contains(t, c.sendCall[0].msg, "<b>1.</b> alice (just now): 10 MB")
+		assert.Contains(t, c.sendCall[0].msg, "<b>1.</b> alice")
 		assert.Contains(t, c.sendCall[0].msg, "<b>2.</b> bob (-): 1 MB")
 	})
 }

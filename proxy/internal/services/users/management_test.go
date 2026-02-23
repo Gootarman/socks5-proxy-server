@@ -199,28 +199,68 @@ func TestGetStats(t *testing.T) {
 	})
 }
 
-func TestFormatBytes(t *testing.T) {
+func TestIsUsernameFree(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name string
-		size int64
-		want string
-	}{
-		{name: "bytes", size: 1024, want: "1024 B"},
-		{name: "kb", size: 1025, want: "1.00 KB"},
-		{name: "mb", size: 1048577, want: "1.00 MB"},
-		{name: "gb", size: 1073741825, want: "1.00 GB"},
+	t.Run("free", func(t *testing.T) {
+		t.Parallel()
+
+		u := New(&redisStub{hgetFn: func(_ context.Context, key, field string) (string, error) {
+			if key != userAuthKey || field != "alice" {
+				t.Fatalf("unexpected HGet args: key=%q field=%q", key, field)
+			}
+
+			return "", goredis.Nil
+		}})
+
+		isFree, err := u.IsUsernameFree(context.Background(), "alice")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if !isFree {
+			t.Fatal("expected username to be free")
+		}
+	})
+
+	t.Run("taken", func(t *testing.T) {
+		t.Parallel()
+
+		u := New(&redisStub{hgetFn: func(_ context.Context, _, _ string) (string, error) {
+			return "hash", nil
+		}})
+
+		isFree, err := u.IsUsernameFree(context.Background(), "alice")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if isFree {
+			t.Fatal("expected username to be taken")
+		}
+	})
+}
+
+func TestGetUsers(t *testing.T) {
+	t.Parallel()
+
+	u := New(&redisStub{hgetAllFn: func(_ context.Context, key string) (map[string]string, error) {
+		if key != userAuthKey {
+			t.Fatalf("unexpected HGetAll key: %q", key)
+		}
+
+		return map[string]string{
+			"bob":   "hash2",
+			"alice": "hash1",
+		}, nil
+	}})
+
+	got, err := u.GetUsers(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := formatBytes(tt.size)
-			if got != tt.want {
-				t.Fatalf("expected %q, got %q", tt.want, got)
-			}
-		})
+	if len(got) != 2 || got[0] != "alice" || got[1] != "bob" {
+		t.Fatalf("expected sorted users [alice bob], got %v", got)
 	}
 }

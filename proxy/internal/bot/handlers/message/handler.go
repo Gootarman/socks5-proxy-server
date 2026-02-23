@@ -11,23 +11,31 @@ import (
 	tele "gopkg.in/telebot.v3"
 
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot"
-	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/commands/generatepass"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/config"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/password"
 	usersservice "github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 type storeI interface {
 	GetUserState(ctx context.Context, username string) (*store.UserState, error)
 	SetUserState(ctx context.Context, username string, state store.UserState) error
-	IsUsernameFree(ctx context.Context, username string) (bool, error)
-	CreateUser(ctx context.Context, username, password string) error
-	DeleteUser(ctx context.Context, username string) error
 }
 
-type Handler struct{ store storeI }
+type usersService interface {
+	IsUsernameFree(ctx context.Context, username string) (bool, error)
+	Create(ctx context.Context, username, password string) error
+	Delete(ctx context.Context, username string) error
+}
 
-func New(store storeI) *Handler { return &Handler{store: store} }
+type Handler struct {
+	store storeI
+	users usersService
+}
+
+func New(store storeI, users usersService) *Handler {
+	return &Handler{store: store, users: users}
+}
 
 //nolint:gocognit,gocyclo,cyclop,funlen,wsl_v5 // State machine handler is intentionally centralized.
 func (h *Handler) Handle(c tele.Context) error {
@@ -59,7 +67,7 @@ func (h *Handler) Handle(c tele.Context) error {
 			return c.Send("Username can not be empty. Enter the new one.")
 		}
 
-		isFree, err := h.store.IsUsernameFree(ctx, text)
+		isFree, err := h.users.IsUsernameFree(ctx, text)
 		if err != nil {
 			return err
 		}
@@ -92,7 +100,7 @@ func (h *Handler) Handle(c tele.Context) error {
 		}
 
 		proxyUsername := userState.Data["username"]
-		if err := h.store.CreateUser(ctx, proxyUsername, text); err != nil {
+		if err := h.users.Create(ctx, proxyUsername, text); err != nil {
 			if errors.Is(err, usersservice.ErrUserExists) {
 				return c.Send("This username is already taken. Enter another one.")
 			}
@@ -129,7 +137,7 @@ func (h *Handler) Handle(c tele.Context) error {
 
 		return c.Send(message, opts)
 	case store.StateDeleteUserEnterUsername:
-		isFree, err := h.store.IsUsernameFree(ctx, text)
+		isFree, err := h.users.IsUsernameFree(ctx, text)
 		if err != nil {
 			return err
 		}
@@ -137,7 +145,7 @@ func (h *Handler) Handle(c tele.Context) error {
 			return c.Send("User with provided username does not exists. Enter another one.")
 		}
 
-		if err = h.store.DeleteUser(ctx, text); err != nil {
+		if err = h.users.Delete(ctx, text); err != nil {
 			if errors.Is(err, usersservice.ErrUserNotFound) {
 				return c.Send("User with provided username does not exists. Enter another one.")
 			}
@@ -157,7 +165,7 @@ func (h *Handler) Handle(c tele.Context) error {
 }
 
 func generateSuggestedPassword() (string, error) {
-	return generatepass.Generate(10)
+	return password.Generate(10)
 }
 
 func buildTelegramSocks5Deeplink(publicURL string, port int, username, password string) string {

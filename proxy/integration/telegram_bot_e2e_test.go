@@ -29,6 +29,7 @@ import (
 	mw "github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/middleware"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/bot/store"
 	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/admin"
+	"github.com/nskondratev/socks5-proxy-server/proxy/internal/services/users"
 )
 
 func TestTelegramBotE2E_AllCommandsAndTextMessages(t *testing.T) {
@@ -185,14 +186,15 @@ func newIntegrationBot(t *testing.T, redis *fakeRedis, apiURL, token string) *te
 	)
 
 	botStore := store.New(redis)
+	usersService := users.New(redis)
 
 	b.Handle(start.Command, start.New(botStore).Handle)
-	b.Handle(usersstats.Command, usersstats.New(botStore).Handle)
+	b.Handle(usersstats.Command, usersstats.New(botStore, usersService).Handle)
 	b.Handle(createuser.Command, createuser.New(botStore).Handle)
 	b.Handle(deleteuser.Command, deleteuser.New(botStore).Handle)
-	b.Handle(getusers.Command, getusers.New(botStore).Handle)
+	b.Handle(getusers.Command, getusers.New(botStore, usersService).Handle)
 	b.Handle(generatepass.Command, generatepass.New().Handle)
-	b.Handle(tele.OnText, message.New(botStore).Handle)
+	b.Handle(tele.OnText, message.New(botStore, usersService).Handle)
 
 	return b
 }
