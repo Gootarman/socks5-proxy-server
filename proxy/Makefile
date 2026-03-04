@@ -36,4 +36,6 @@ run:
 
 .PHONY: build
 build:
-	rm ./dist/proxy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./dist/proxy ./cmd
+	mkdir -p ./dist
+	rm -f ./dist/proxy
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ./dist/proxy ./cmd
