@@ -5,6 +5,34 @@ import _ from 'lodash'
 import { USER_STATE } from './constants.js'
 import { getChatIdAndUserName } from './utils.js'
 
+function getProxyHostFromPublicUrl () {
+  const publicUrl = process.env.PUBLIC_URL?.trim()
+
+  if (!publicUrl) {
+    return ''
+  }
+
+  try {
+    const normalizedUrl = /^https?:\/\//.test(publicUrl) ? publicUrl : `http://${publicUrl}`
+
+    return new URL(normalizedUrl).hostname
+  } catch {
+    return publicUrl
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      .split(':')[0]
+  }
+}
+
+function escapeHtml (str = '') {
+  return str
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
 export default function ({ bot, logger, store }) {
   bot.onText(/\/start(.*)/, async (msg, _match) => {
     const { chatId, username } = getChatIdAndUserName(msg)
@@ -230,7 +258,47 @@ export default function ({ bot, logger, store }) {
           await store.createUser(userState.data.username, proxyPassword)
           await store.setUserState(username, { state: USER_STATE.IDLE, data: {} })
 
-          const message = `User created. Send this settings to him:\n\n<b>host:</b> ${process.env.PUBLIC_URL.replace('https://', '').replace('http://', '')}\n<b>port:</b> ${process.env.APP_PORT}\n<b>username:</b> ${userState.data.username}\n<b>password:</b> ${proxyPassword}`
+          const proxyHost = getProxyHostFromPublicUrl()
+          const proxyPort = process.env.APP_PORT
+          const encodedProxyHost = encodeURIComponent(proxyHost)
+          const encodedProxyPort = encodeURIComponent(proxyPort)
+          const encodedProxyUsername = encodeURIComponent(userState.data.username)
+          const encodedProxyPassword = encodeURIComponent(proxyPassword)
+
+          const telegramProxyLink = proxyHost
+            ? `tg://socks?server=${encodedProxyHost}&port=${encodedProxyPort}&user=${encodedProxyUsername}&pass=${encodedProxyPassword}`
+            : null
+
+          const connectionLink = proxyHost
+            ? `socks5://${encodedProxyUsername}:${encodedProxyPassword}@${proxyHost}:${proxyPort}`
+            : null
+
+          const messageParts = [
+            'User created. Send this settings to him:',
+            ''
+          ]
+
+          if (proxyHost) {
+            messageParts.push(`<b>host:</b> ${escapeHtml(proxyHost)}`)
+          }
+
+          messageParts.push(`<b>port:</b> ${escapeHtml(proxyPort)}`)
+          messageParts.push(`<b>username:</b> ${escapeHtml(userState.data.username)}`)
+          messageParts.push(`<b>password:</b> ${escapeHtml(proxyPassword)}`)
+
+          if (connectionLink) {
+            messageParts.push(`<b>proxy link:</b> <code>${escapeHtml(connectionLink)}</code>`)
+          }
+
+          if (telegramProxyLink) {
+            messageParts.push(`<b>telegram link:</b> <a href="${escapeHtml(telegramProxyLink)}">Connect in Telegram</a>`)
+          }
+
+          if (!proxyHost) {
+            messageParts.push('<i>Proxy host is not configured.</i>')
+          }
+
+          const message = messageParts.join('\n')
 
           await bot.sendMessage(chatId, message, {
             parse_mode: 'HTML',
