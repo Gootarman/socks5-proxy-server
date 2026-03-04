@@ -51,17 +51,17 @@ export class Store {
     users.sort((a, b) => b.usage - a.usage)
 
     return users.map((u, i) => {
-      let usage = `${u.usage} B`
+      let usage = `${u.usage} Б`
 
       if (u.usage > 1073741824) {
         // Usage in GB
-        usage = `${(u.usage / 1073741824).toFixed(2)} GB`
+        usage = `${(u.usage / 1073741824).toFixed(2)} ГБ`
       } else if (u.usage > 1048576) {
         // Usage in MB
-        usage = `${(u.usage / 1048576).toFixed(2)} MB`
+        usage = `${(u.usage / 1048576).toFixed(2)} МБ`
       } else if (u.usage > 1024) {
         // Usage in KB
-        usage = `${(u.usage / 1024).toFixed(2)} KB`
+        usage = `${(u.usage / 1024).toFixed(2)} КБ`
       }
 
       return [i + 1, ...Object.values(u), usage, lastLoginData[u.username] || '-']
@@ -80,7 +80,7 @@ export class Store {
   async createUser (username, password) {
     const userPassword = await this.#redis.hGet(REDIS.AUTH_USER_KEY, username)
     if (userPassword) {
-      throw new Error('User with provided username already exists')
+      throw new Error('Пользователь с таким логином уже существует')
     }
     const hashedPassword = await bcryptPromise.hashAsync(password, 10)
     await this.#redis.hSet(REDIS.AUTH_USER_KEY, username, hashedPassword)
@@ -89,7 +89,7 @@ export class Store {
   async deleteUser (username) {
     const userPassword = await this.#redis.hGet(REDIS.AUTH_USER_KEY, username)
     if (!userPassword) {
-      throw new Error('User with provided username not found')
+      throw new Error('Пользователь с таким логином не найден')
     }
 
     await this.#redis.hDel(REDIS.AUTH_USER_KEY, username)

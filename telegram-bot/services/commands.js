@@ -1,5 +1,6 @@
 import passwordGenerator from 'generate-password'
 import moment from 'moment'
+import 'moment/locale/ru.js'
 import _ from 'lodash'
 
 import { USER_STATE } from './constants.js'
@@ -33,6 +34,8 @@ function escapeHtml (str = '') {
     .replaceAll("'", '&#39;')
 }
 
+moment.locale('ru')
+
 export default function ({ bot, logger, store }) {
   bot.onText(/\/start(.*)/, async (msg, _match) => {
     const { chatId, username } = getChatIdAndUserName(msg)
@@ -41,7 +44,7 @@ export default function ({ bot, logger, store }) {
 
     try {
       if (!await store.isAdmin(username)) {
-        await bot.sendMessage(chatId, 'Hello! You are not an admin of this proxy server.')
+        await bot.sendMessage(chatId, 'Здравствуйте! Вы не являетесь администратором этого прокси-сервера.')
 
         return
       }
@@ -50,7 +53,7 @@ export default function ({ bot, logger, store }) {
       await store.setUserState(username, userState)
 
       await Promise.all([
-        bot.sendMessage(chatId, 'Hello! You can manage proxy server.'),
+        bot.sendMessage(chatId, 'Здравствуйте! Вы можете управлять прокси-сервером.'),
         store.updateAdminChatId(username, chatId)
       ])
     } catch (err) {
@@ -64,21 +67,21 @@ export default function ({ bot, logger, store }) {
     logger.debug(`Received stats request from @${username}`)
     try {
       if (!await store.isAdmin(username)) {
-        await bot.sendMessage(chatId, 'Sorry, this functionality is available only for admin users.')
+        await bot.sendMessage(chatId, 'Извините, эта функция доступна только администраторам.')
 
         return
       }
 
       const dataUsage = await store.getUsersStats()
 
-      let message = '<b>Data usage by users:</b>\n\n'
+      let message = '<b>Статистика трафика пользователей:</b>\n\n'
 
       if (dataUsage.length > 0) {
         dataUsage.forEach(u => {
           message += `<b>${u[0]}.</b> ${u[1]} (${moment(u[4]).fromNow()}): ${u[3]}\n`
         })
       } else {
-        message += 'No usage stats.'
+        message += 'Статистика пока отсутствует.'
       }
 
       await store.setUserState(username, { state: USER_STATE.IDLE, data: {} })
@@ -99,7 +102,7 @@ export default function ({ bot, logger, store }) {
     try {
       logger.debug(`Match: ${JSON.stringify(match)}`)
       if (!await store.isAdmin(username)) {
-        await bot.sendMessage(chatId, 'Sorry, this functionality is available only for admin users.')
+        await bot.sendMessage(chatId, 'Извините, эта функция доступна только администраторам.')
 
         return
       }
@@ -107,7 +110,7 @@ export default function ({ bot, logger, store }) {
       const userState = { state: USER_STATE.CREATE_USER_ENTER_USERNAME, data: {} }
 
       await store.setUserState(username, userState)
-      await bot.sendMessage(chatId, 'Enter username for the new proxy user.', {
+      await bot.sendMessage(chatId, 'Введите логин для нового пользователя прокси.', {
         reply_markup: { remove_keyboard: true }
       })
     } catch (err) {
@@ -123,14 +126,14 @@ export default function ({ bot, logger, store }) {
 
     try {
       if (!await store.isAdmin(username)) {
-        await bot.sendMessage(chatId, 'Sorry, this functionality is available only for admin users.')
+        await bot.sendMessage(chatId, 'Извините, эта функция доступна только администраторам.')
 
         return
       }
 
       const userState = { state: USER_STATE.DELETE_USER_ENTER_USERNAME, data: {} }
       await store.setUserState(username, userState)
-      await bot.sendMessage(chatId, 'Enter username to delete.', {
+      await bot.sendMessage(chatId, 'Введите логин пользователя для удаления.', {
         reply_markup: { remove_keyboard: true }
       })
     } catch (err) {
@@ -146,7 +149,7 @@ export default function ({ bot, logger, store }) {
 
     try {
       if (!await store.isAdmin(username)) {
-        await bot.sendMessage(chatId, 'Sorry, this functionality is available only for admin users.')
+        await bot.sendMessage(chatId, 'Извините, эта функция доступна только администраторам.')
 
         return
       }
@@ -154,16 +157,16 @@ export default function ({ bot, logger, store }) {
       await store.setUserState(username, { state: USER_STATE.IDLE, data: {} })
       const users = await store.getUsers()
 
-      let message = 'No users.'
+      let message = 'Пользователей нет.'
 
       if (users.length > 0) {
-        message = '<b>Users</b>:\n\n'
+        message = '<b>Пользователи</b>:\n\n'
 
         users.sort().forEach((u, i) => {
           message += `${i + 1}. ${u}\n`
         })
 
-        message += `\n<b>Total: ${users.length}</b>`
+        message += `\n<b>Итого: ${users.length}</b>`
       }
 
       await bot.sendMessage(chatId, message, {
@@ -208,7 +211,7 @@ export default function ({ bot, logger, store }) {
 
       switch (userState.state) {
         case USER_STATE.IDLE:
-          await bot.sendMessage(chatId, 'Enter command')
+          await bot.sendMessage(chatId, 'Введите команду.')
           break
         case USER_STATE.CREATE_USER_ENTER_USERNAME: {
           const proxyUsername = msg.text.trim()
@@ -216,13 +219,13 @@ export default function ({ bot, logger, store }) {
           logger.debug(`Entered username: ${proxyUsername}`)
 
           if (!proxyUsername) {
-            await bot.sendMessage(chatId, 'Username can not be empty. Enter the new one.')
+            await bot.sendMessage(chatId, 'Логин не может быть пустым. Введите другой.')
 
             break
           }
 
           if (!await store.isUsernameFree(proxyUsername)) {
-            await bot.sendMessage(chatId, 'This username is already taken. Enter another one.')
+            await bot.sendMessage(chatId, 'Этот логин уже занят. Введите другой.')
 
             break
           }
@@ -238,7 +241,7 @@ export default function ({ bot, logger, store }) {
           })
 
           await store.setUserState(username, userState)
-          await bot.sendMessage(chatId, 'Ok. Enter the password or use the suggested one.', {
+          await bot.sendMessage(chatId, 'Введите пароль или используйте предложенный вариант.', {
             reply_markup: {
               keyboard: [[suggestedPassword]]
             }
@@ -250,7 +253,7 @@ export default function ({ bot, logger, store }) {
           const proxyPassword = msg.text.trim()
 
           if (!proxyPassword) {
-            await bot.sendMessage(chatId, 'Password can not be empty. Enter the new one.')
+            await bot.sendMessage(chatId, 'Пароль не может быть пустым. Введите другой.')
 
             break
           }
@@ -274,29 +277,36 @@ export default function ({ bot, logger, store }) {
             : null
 
           const messageParts = [
-            'User created. Send this settings to him:',
+            '<b>Пользователь создан</b>',
+            '<i>Отправьте это сообщение пользователю.</i>',
             ''
           ]
 
+          if (telegramProxyLink || connectionLink) {
+            messageParts.push('<b>Быстрое подключение</b>')
+
+            if (telegramProxyLink) {
+              messageParts.push(`<a href="${escapeHtml(telegramProxyLink)}">Подключить в Telegram</a>`)
+            }
+
+            if (connectionLink) {
+              messageParts.push(`<code>${escapeHtml(connectionLink)}</code>`)
+            }
+
+            messageParts.push('')
+          }
+
+          messageParts.push('<b>Ручная настройка</b>')
+
           if (proxyHost) {
-            messageParts.push(`<b>host:</b> ${escapeHtml(proxyHost)}`)
+            messageParts.push(`<b>хост:</b> <code>${escapeHtml(proxyHost)}</code>`)
+          } else {
+            messageParts.push('<i>Хост прокси не настроен.</i>')
           }
 
-          messageParts.push(`<b>port:</b> ${escapeHtml(proxyPort)}`)
-          messageParts.push(`<b>username:</b> ${escapeHtml(userState.data.username)}`)
-          messageParts.push(`<b>password:</b> ${escapeHtml(proxyPassword)}`)
-
-          if (connectionLink) {
-            messageParts.push(`<b>proxy link:</b> <code>${escapeHtml(connectionLink)}</code>`)
-          }
-
-          if (telegramProxyLink) {
-            messageParts.push(`<b>telegram link:</b> <a href="${escapeHtml(telegramProxyLink)}">Connect in Telegram</a>`)
-          }
-
-          if (!proxyHost) {
-            messageParts.push('<i>Proxy host is not configured.</i>')
-          }
+          messageParts.push(`<b>порт:</b> <code>${escapeHtml(proxyPort)}</code>`)
+          messageParts.push(`<b>логин:</b> <code>${escapeHtml(userState.data.username)}</code>`)
+          messageParts.push(`<b>пароль:</b> <code>${escapeHtml(proxyPassword)}</code>`)
 
           const message = messageParts.join('\n')
 
@@ -313,14 +323,14 @@ export default function ({ bot, logger, store }) {
           logger.debug(`Entered username: ${usernameToDelete}`)
 
           if (await store.isUsernameFree(usernameToDelete)) {
-            await bot.sendMessage(chatId, 'User with provided username does not exists. Enter another one.')
+            await bot.sendMessage(chatId, 'Пользователь с таким логином не существует. Введите другой.')
 
             break
           }
 
           await store.deleteUser(usernameToDelete)
           await store.setUserState(username, { state: USER_STATE.IDLE, data: {} })
-          await bot.sendMessage(chatId, 'User deleted.')
+          await bot.sendMessage(chatId, 'Пользователь удалён.')
 
           break
         }
