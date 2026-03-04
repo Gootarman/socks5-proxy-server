@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Proxy Admin</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #111d33;
+      --text: #e7edf8;
+      --muted: #9fb3d6;
+      --accent: #2f7efc;
+      --accent-hover: #4b92ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 20% 20%, #18325f 0%, #0b1220 55%);
+      padding: 16px;
+    }
+
+    .panel {
+      max-width: 440px;
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 18px;
+      backdrop-filter: blur(8px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+      background: var(--accent);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    .password {
+      margin-top: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input {
+      margin-top: 4px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <h1>Управление Proxy</h1>
+    <p>Выберите действие. Команда отправится в бота сразу после нажатия кнопки.</p>
+
+    <div class="grid">
+      <button type="button" data-action="users_stats">Статистика</button>
+      <button type="button" data-action="get_users">Список пользователей</button>
+      <button type="button" data-action="create_user">Создать пользователя</button>
+      <button type="button" data-action="delete_user">Удалить пользователя</button>
+    </div>
+
+    <div class="password">
+      <label for="pass-length">
+        Длина пароля
+        <input id="pass-length" type="number" min="4" max="64" value="10">
+      </label>
+      <button id="generate-pass-btn" type="button">Сгенерировать пароль</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </main>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp
+    const statusEl = document.getElementById('status')
+    const passLengthEl = document.getElementById('pass-length')
+    const generatePassButtonEl = document.getElementById('generate-pass-btn')
+
+    const sendAction = payload => {
+      if (!tg) {
+        statusEl.textContent = 'Mini App нужно открывать внутри Telegram.'
+        return
+      }
+
+      tg.HapticFeedback?.impactOccurred('light')
+      tg.sendData(JSON.stringify(payload))
+      tg.close()
+    }
+
+    document.querySelectorAll('[data-action]').forEach(button => {
+      button.addEventListener('click', () => {
+        sendAction({ action: button.dataset.action })
+      })
+    })
+
+    generatePassButtonEl.addEventListener('click', () => {
+      const length = Number.parseInt(passLengthEl.value, 10)
+
+      sendAction({
+        action: 'generate_pass',
+        length: Number.isFinite(length) ? length : 10
+      })
+    })
+
+    if (tg) {
+      tg.ready()
+      tg.expand()
+    }
+  </script>
+</body>
+</html>

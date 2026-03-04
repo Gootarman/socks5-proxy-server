@@ -28,6 +28,7 @@ export class Bot {
 
   #initBot () {
     this.#logger.debug('Init telegram bot...')
+    const useWebHooks = Number.parseInt(process.env.TELEGRAM_USE_WEB_HOOKS ?? process.env.TELEGRAM_USE_WEBHOOKS) === 1
 
     const options = {}
     if (process.env.PROXY_SOCKS5_HOST) {
@@ -48,7 +49,7 @@ export class Bot {
       }
     }
 
-    if (Number.parseInt(process.env.TELEGRAM_USE_WEB_HOOKS) !== 1) {
+    if (!useWebHooks) {
       options.polling = true
     } else {
       options.webHook = {
@@ -62,7 +63,7 @@ export class Bot {
 
     this.#logger.info('Telegram bot is created')
 
-    if (parseInt(process.env.TELEGRAM_USE_WEB_HOOKS) === 1) {
+    if (useWebHooks) {
       const setWebHook = async () => {
         const webHookUrl = `${process.env.PUBLIC_URL}${process.env.TELEGRAM_WEB_HOOK_URL}${process.env.TELEGRAM_API_TOKEN}`
         this.#logger.info(`WebHook url: ${webHookUrl}. Get current WebHookInfo...`)

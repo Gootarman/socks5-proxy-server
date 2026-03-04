@@ -41,6 +41,7 @@ docker exec -it socks5-proxy-server-proxy-1 sh -c 'exec node scripts/users-stats
 - Initialize bot at @botfather, get API token
 - Set params in .env:
   - PUBLIC_URL - URL to server. E.g. http://proxy.domain.com:8443
+  - MINI_APP_URL - optional URL for Telegram Mini App. If not set, bot uses `${PUBLIC_URL}/mini-app`
   - TELEGRAM_API_TOKEN - API token from BotFather
   - TELEGRAM_WEBHOOK_URL - default: /webhook
   - TELEGRAM_USE_WEBHOOKS - 1 - use webhooks, 0 - use polling. To use webhooks you need to generate ssl certificates
@@ -61,3 +62,7 @@ docker exec -it socks5-proxy-server-telegram_bot-1 sh -c 'exec node scripts/dele
 - `/get_users` - get list of proxy users
 - `/generate_pass [length]` - generate random password with specified length (10 by default)
 
+### Telegram buttons / Mini App
+- Main bot menu now includes command buttons and a Mini App button.
+- In polling mode (`TELEGRAM_USE_WEBHOOKS=0`) telegram-bot serves built-in Mini App at `/mini-app` on `BOT_APP_PORT`.
+- For production Telegram Mini App URL must be HTTPS.
