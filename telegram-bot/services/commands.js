@@ -276,14 +276,11 @@ export default function ({ bot, logger, store }) {
             ? `socks5://${encodedProxyUsername}:${encodedProxyPassword}@${proxyHost}:${proxyPort}`
             : null
 
-          const messageParts = [
-            '<b>Пользователь создан</b>',
-            '<i>Отправьте это сообщение пользователю.</i>',
-            ''
-          ]
+          const messageParts = []
 
           if (telegramProxyLink || connectionLink) {
-            messageParts.push('<b>Быстрое подключение</b>')
+            messageParts.push('<b>Для подключения прокси нажмите ссылку</b> - это быстрый вариант.')
+            messageParts.push('')
 
             if (telegramProxyLink) {
               messageParts.push(`<a href="${escapeHtml(telegramProxyLink)}">Подключить в Telegram</a>`)
