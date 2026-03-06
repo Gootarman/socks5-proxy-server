@@ -24,7 +24,8 @@
     <div class="row"><strong>Создан:</strong> {{ user.created_at }}</div>
     <div class="row"><strong>Ссылка:</strong>
       {% if user.proxy_link %}
-      <code>{{ user.proxy_link }}</code>
+      <code id="user-link">{{ user.proxy_link }}</code>
+      <button type="button" class="copy-btn" data-copy="{{ user.proxy_link|e }}">Копировать</button>
       {% else %}
       укажите переменную окружения MTG_SECRET
       {% endif %}
@@ -42,5 +43,18 @@
       <a href="{{ url_for('index') }}">Назад</a>
     </div>
   </div>
+  <script>
+    const btn = document.querySelector('.copy-btn');
+    if (btn) {
+      btn.addEventListener('click', async () => {
+        const text = btn.dataset.copy;
+        try { await navigator.clipboard.writeText(text); }
+        catch (_) {
+          const area = document.createElement('textarea'); area.value = text; document.body.appendChild(area); area.select(); document.execCommand('copy'); document.body.removeChild(area);
+        }
+        const old = btn.textContent; btn.textContent = "Скопировано"; setTimeout(() => btn.textContent = old, 900);
+      });
+    }
+  </script>
 </body>
 </html>

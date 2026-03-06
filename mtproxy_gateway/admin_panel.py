@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import socket
 import sqlite3
+from datetime import datetime, timezone
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 from db_setup import get_connection, init_db
 from generate_token import add_user
@@ -16,12 +18,40 @@ PUBLIC_HOST = os.getenv("PUBLIC_HOST", "127.0.0.1")
 MTG_SECRET = os.getenv("MTG_SECRET", "")
 PORT_RANGE_START = int(os.getenv("PORT_RANGE_START", "11000"))
 PORT_RANGE_END = int(os.getenv("PORT_RANGE_END", "11999"))
+MONITOR_UPSTREAM_HOST = os.getenv("MONITOR_UPSTREAM_HOST", "mtg")
+MONITOR_UPSTREAM_PORT = int(os.getenv("MONITOR_UPSTREAM_PORT", "443"))
 
 
 def user_proxy_link(port: int) -> str:
     if not MTG_SECRET:
         return ""
     return f"tg://proxy?server={PUBLIC_HOST}&port={port}&secret={MTG_SECRET}"
+
+
+def check_upstream(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=1.5):
+            return True
+    except OSError:
+        return False
+
+
+def monitor_data() -> dict:
+    with get_connection() as connection:
+        total_users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        active_users = connection.execute(
+            "SELECT COUNT(*) FROM users WHERE is_active = 1"
+        ).fetchone()[0]
+        disabled_users = total_users - active_users
+
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "disabled_users": disabled_users,
+        "upstream_ok": check_upstream(MONITOR_UPSTREAM_HOST, MONITOR_UPSTREAM_PORT),
+        "upstream_target": f"{MONITOR_UPSTREAM_HOST}:{MONITOR_UPSTREAM_PORT}",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.before_request
@@ -39,7 +69,17 @@ def index():
     users_with_links = [
         {**dict(user), "proxy_link": user_proxy_link(user["listen_port"])} for user in users
     ]
-    return render_template("index.html", users=users_with_links, public_host=PUBLIC_HOST)
+    return render_template(
+        "index.html",
+        users=users_with_links,
+        public_host=PUBLIC_HOST,
+        monitor=monitor_data(),
+    )
+
+
+@app.get("/monitor.json")
+def monitor_json():
+    return jsonify(monitor_data())
 
 
 @app.route("/add", methods=["GET", "POST"])
