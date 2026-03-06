@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Пользователь {{ user.username }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background:#f6f7fb; }
+    .container { max-width: 700px; margin: 0 auto; background:#fff; padding:20px; border-radius:10px; }
+    .row { margin-bottom:8px; }
+    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; }
+    .actions { margin-top:18px; display:flex; gap:10px; }
+    button, a { padding:10px 14px; border-radius:8px; border:1px solid #ddd; background:#fff; text-decoration:none; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Пользователь #{{ user.id }}</h1>
+    <div class="row"><strong>Username:</strong> {{ user.username }}</div>
+    <div class="row"><strong>Token:</strong> <code>{{ user.token }}</code></div>
+    <div class="row"><strong>Статус:</strong> {{ 'Активен' if user.is_active else 'Отключен' }}</div>
+    <div class="row"><strong>Создан:</strong> {{ user.created_at }}</div>
+
+    <div class="actions">
+      <form method="post" action="{{ url_for('toggle_user', user_id=user.id) }}">
+        <button type="submit">Переключить статус</button>
+      </form>
+
+      <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('Удалить пользователя?')">
+        <button type="submit">Удалить</button>
+      </form>
+
+      <a href="{{ url_for('index') }}">Назад</a>
+    </div>
+  </div>
+</body>
+</html>

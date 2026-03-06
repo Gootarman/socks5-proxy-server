@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MTProxy Gateway Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f7fb; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .top { display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #ddd; background:#fff; }
+    .active { color: #15803d; font-weight: 700; }
+    .inactive { color: #b91c1c; font-weight: 700; }
+    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top">
+      <h1>Пользователи MTProxy Gateway</h1>
+      <a class="btn" href="{{ url_for('add_user') }}">+ Добавить пользователя</a>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Token</th>
+          <th>Статус</th>
+          <th>Создан</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.username }}</td>
+          <td><code>{{ user.token }}</code></td>
+          <td>
+            {% if user.is_active %}
+              <span class="active">Активен</span>
+            {% else %}
+              <span class="inactive">Отключен</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at }}</td>
+          <td><a class="btn" href="{{ url_for('user_detail', user_id=user.id) }}">Открыть</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">Пока нет пользователей.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
