@@ -1,122 +1,107 @@
-"""Token-protected TCP gateway for forwarding traffic to an upstream MTProxy endpoint."""
+"""TCP multi-port gateway for dockerized nineseconds/mtg upstream."""
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-from typing import Optional
+from contextlib import suppress
 
 from db_setup import get_connection, init_db
 
 
-async def relay_stream(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    """Relay bytes from one stream to another until EOF."""
-    try:
-        while not reader.at_eof():
-            data = await reader.read(65536)
-            if not data:
-                break
-            writer.write(data)
-            await writer.drain()
-    except (ConnectionResetError, BrokenPipeError):
-        pass
-    finally:
+class UserGatewayManager:
+    def __init__(self, upstream_host: str, upstream_port: int, listen_host: str, poll_interval: float):
+        self.upstream_host = upstream_host
+        self.upstream_port = upstream_port
+        self.listen_host = listen_host
+        self.poll_interval = poll_interval
+        self.servers: dict[int, asyncio.AbstractServer] = {}
+
+    async def relay_stream(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
-            writer.close()
-            await writer.wait_closed()
-        except Exception:
+            while not reader.at_eof():
+                data = await reader.read(65536)
+                if not data:
+                    break
+                writer.write(data)
+                await writer.drain()
+        except (ConnectionResetError, BrokenPipeError):
             pass
+        finally:
+            with suppress(Exception):
+                writer.close()
+                await writer.wait_closed()
 
+    async def handle_client(self, client_reader: asyncio.StreamReader, client_writer: asyncio.StreamWriter) -> None:
+        try:
+            upstream_reader, upstream_writer = await asyncio.open_connection(
+                self.upstream_host, self.upstream_port
+            )
+        except OSError:
+            client_writer.close()
+            await client_writer.wait_closed()
+            return
 
-def is_valid_token(token: str) -> bool:
-    """Check if token exists and active in DB."""
-    with get_connection() as connection:
-        row = connection.execute(
-            "SELECT id FROM users WHERE token = ? AND is_active = 1", (token,)
-        ).fetchone()
-    return row is not None
-
-
-async def read_token_line(reader: asyncio.StreamReader) -> Optional[str]:
-    """Read token from first line with a simple timeout."""
-    try:
-        raw = await asyncio.wait_for(reader.readline(), timeout=10)
-    except asyncio.TimeoutError:
-        return None
-
-    token = raw.decode("utf-8", errors="ignore").strip()
-    return token or None
-
-
-async def handle_client(
-    client_reader: asyncio.StreamReader,
-    client_writer: asyncio.StreamWriter,
-    upstream_host: str,
-    upstream_port: int,
-) -> None:
-    """Validate token and proxy traffic for authorized clients."""
-    peer = client_writer.get_extra_info("peername")
-
-    token = await read_token_line(client_reader)
-    if not token or not is_valid_token(token):
-        client_writer.write(b"AUTH_FAILED\n")
-        await client_writer.drain()
-        client_writer.close()
-        await client_writer.wait_closed()
-        print(f"Rejected connection from {peer}")
-        return
-
-    try:
-        upstream_reader, upstream_writer = await asyncio.open_connection(
-            upstream_host, upstream_port
+        await asyncio.gather(
+            self.relay_stream(client_reader, upstream_writer),
+            self.relay_stream(upstream_reader, client_writer),
         )
-    except OSError as exc:
-        client_writer.write(b"UPSTREAM_UNAVAILABLE\n")
-        await client_writer.drain()
-        client_writer.close()
-        await client_writer.wait_closed()
-        print(f"Upstream connect failed for {peer}: {exc}")
-        return
 
-    print(f"Accepted connection from {peer}")
-    await asyncio.gather(
-        relay_stream(client_reader, upstream_writer),
-        relay_stream(upstream_reader, client_writer),
+    def active_ports(self) -> set[int]:
+        with get_connection() as connection:
+            rows = connection.execute(
+                "SELECT listen_port FROM users WHERE is_active = 1"
+            ).fetchall()
+        return {int(row["listen_port"]) for row in rows if row["listen_port"] is not None}
+
+    async def open_port(self, port: int) -> None:
+        if port in self.servers:
+            return
+        server = await asyncio.start_server(self.handle_client, self.listen_host, port)
+        self.servers[port] = server
+        print(f"Port enabled: {self.listen_host}:{port} -> {self.upstream_host}:{self.upstream_port}")
+
+    async def close_port(self, port: int) -> None:
+        server = self.servers.pop(port, None)
+        if not server:
+            return
+        server.close()
+        await server.wait_closed()
+        print(f"Port disabled: {self.listen_host}:{port}")
+
+    async def sync_ports(self) -> None:
+        desired = self.active_ports()
+        current = set(self.servers.keys())
+        for port in sorted(desired - current):
+            await self.open_port(port)
+        for port in sorted(current - desired):
+            await self.close_port(port)
+
+    async def run(self) -> None:
+        init_db()
+        while True:
+            await self.sync_ports()
+            await asyncio.sleep(self.poll_interval)
+
+
+async def main_async(args: argparse.Namespace) -> None:
+    manager = UserGatewayManager(
+        upstream_host=args.upstream_host,
+        upstream_port=args.upstream_port,
+        listen_host=args.listen_host,
+        poll_interval=args.poll_interval,
     )
-
-
-async def start_gateway(listen_host: str, listen_port: int, upstream_host: str, upstream_port: int) -> None:
-    """Start the async TCP gateway server."""
-    init_db()
-    server = await asyncio.start_server(
-        lambda r, w: handle_client(r, w, upstream_host, upstream_port),
-        listen_host,
-        listen_port,
-    )
-
-    print(
-        f"Gateway listening on {listen_host}:{listen_port} -> {upstream_host}:{upstream_port}"
-    )
-    async with server:
-        await server.serve_forever()
+    await manager.run()
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Token-protected TCP gateway")
+    parser = argparse.ArgumentParser(description="MTG user-aware TCP gateway")
     parser.add_argument("--listen-host", default="0.0.0.0")
-    parser.add_argument("--listen-port", type=int, default=9090)
     parser.add_argument("--upstream-host", default="127.0.0.1")
-    parser.add_argument("--upstream-port", type=int, default=443)
+    parser.add_argument("--upstream-port", type=int, default=3128)
+    parser.add_argument("--poll-interval", type=float, default=2.0)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    asyncio.run(
-        start_gateway(
-            args.listen_host,
-            args.listen_port,
-            args.upstream_host,
-            args.upstream_port,
-        )
-    )
+    asyncio.run(main_async(parse_args()))

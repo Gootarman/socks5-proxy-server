@@ -3,33 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MTProxy Gateway Admin</title>
+  <title>MTG Gateway Admin</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f7fb; }
-    .container { max-width: 1000px; margin: 0 auto; }
+    .container { max-width: 1150px; margin: 0 auto; }
     table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
     .top { display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #ddd; background:#fff; }
+    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #ddd; background:#fff; color:#111; }
     .active { color: #15803d; font-weight: 700; }
     .inactive { color: #b91c1c; font-weight: 700; }
-    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; }
+    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; word-break: break-all; }
+    .hint { margin-bottom: 12px; color: #4b5563; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="top">
-      <h1>Пользователи MTProxy Gateway</h1>
-      <a class="btn" href="{{ url_for('add_user') }}">+ Добавить пользователя</a>
+      <h1>Пользователи MTG Gateway</h1>
+      <a class="btn" href="{{ url_for('add_user_page') }}">+ Добавить пользователя</a>
     </div>
+    <p class="hint">Публичный хост: <strong>{{ public_host }}</strong>. У каждого пользователя свой порт доступа к одному upstream контейнеру <code>nineseconds/mtg</code>.</p>
 
     <table>
       <thead>
         <tr>
           <th>ID</th>
           <th>Username</th>
-          <th>Token</th>
+          <th>Port</th>
           <th>Статус</th>
+          <th>Proxy link</th>
           <th>Создан</th>
           <th>Действия</th>
         </tr>
@@ -39,7 +42,7 @@
         <tr>
           <td>{{ user.id }}</td>
           <td>{{ user.username }}</td>
-          <td><code>{{ user.token }}</code></td>
+          <td><code>{{ user.listen_port }}</code></td>
           <td>
             {% if user.is_active %}
               <span class="active">Активен</span>
@@ -47,11 +50,18 @@
               <span class="inactive">Отключен</span>
             {% endif %}
           </td>
+          <td>
+            {% if user.proxy_link %}
+            <code>{{ user.proxy_link }}</code>
+            {% else %}
+            <span>Укажите MTG_SECRET в env</span>
+            {% endif %}
+          </td>
           <td>{{ user.created_at }}</td>
           <td><a class="btn" href="{{ url_for('user_detail', user_id=user.id) }}">Открыть</a></td>
         </tr>
         {% else %}
-        <tr><td colspan="6">Пока нет пользователей.</td></tr>
+        <tr><td colspan="7">Пока нет пользователей.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1,33 +1,33 @@
-# MTProxy Gateway
+# MTG Admin Gateway (for `nineseconds/mtg`)
 
-Небольшой Python-проект для управления доступом к TCP-шлюзу с помощью токенов.
+Этот модуль — админ-прослойка над уже работающим MTProto proxy в Docker-образе `nineseconds/mtg`.
 
-## Структура
+## Идея
+
+`mtg` не поддерживает пользовательские токены на уровне протокола клиента Telegram. Поэтому вместо «токен в первом пакете» используется рабочая схема:
+
+- один upstream `mtg` контейнер (например, `mtg:3128`);
+- для каждого пользователя выделяется **свой внешний порт**;
+- gateway проксирует `user_port -> mtg:3128`;
+- отключение пользователя = закрытие его порта.
+
+Такой подход совместим с Telegram-клиентами и дает простое администрирование.
+
+## Состав
 
 ```text
 mtproxy_gateway/
-├─ gateway.py           # TCP Gateway
-├─ db_setup.py          # Инициализация БД пользователей
-├─ generate_token.py    # Генерация токенов / добавление пользователей
-├─ admin_panel.py       # Web-панель администратора (Flask)
+├─ gateway.py           # Multi-port TCP gateway (динамически открывает порты активных пользователей)
+├─ db_setup.py          # SQLite + миграции
+├─ generate_token.py    # CLI создание пользователя с автопортом
+├─ admin_panel.py       # Flask web UI
 ├─ templates/
-│  ├─ index.html        # Главная страница
-│  ├─ add_user.html     # Добавление пользователя
-│  └─ user_detail.html  # Детали пользователя
-└─ users.db             # SQLite БД (создается автоматически)
+│  ├─ index.html
+│  ├─ add_user.html
+│  └─ user_detail.html
+├─ requirements.txt
+└─ users.db             # создается автоматически
 ```
-
-## Что делает проект
-
-1. **Gateway (`gateway.py`)** поднимает TCP сервер.
-2. Клиент при подключении должен отправить **токен первой строкой** (`<token>\n`).
-3. Если токен активен в БД, gateway открывает соединение с upstream-сервером и проксирует трафик в обе стороны.
-4. Если токен невалидный — соединение закрывается.
-
-## Требования
-
-- Python 3.10+
-- pip
 
 ## Установка
 
@@ -35,76 +35,74 @@ mtproxy_gateway/
 cd mtproxy_gateway
 python3 -m venv .venv
 source .venv/bin/activate
-pip install flask
-```
-
-## Инициализация БД
-
-```bash
+pip install -r requirements.txt
 python db_setup.py
 ```
 
-После этого создастся файл `users.db` с таблицей пользователей.
+## Настройка окружения
 
-## Работа с пользователями
+Переменные для `admin_panel.py`:
 
-### 1) Сгенерировать токен (без сохранения)
+- `PUBLIC_HOST` — внешний домен/IP, который видит клиент Telegram;
+- `MTG_SECRET` — секрет вашего `mtg` (для генерации `tg://proxy` ссылок);
+- `PORT_RANGE_START` / `PORT_RANGE_END` — диапазон автопортов пользователей.
 
-```bash
-python generate_token.py
-```
-
-### 2) Создать пользователя и сохранить токен в БД
+Пример:
 
 ```bash
-python generate_token.py my_user
+export PUBLIC_HOST=proxy.example.com
+export MTG_SECRET=dd000000000000000000000000000000
+export PORT_RANGE_START=11000
+export PORT_RANGE_END=11999
 ```
 
-## Запуск Web Admin
+## Запуск
+
+### 1) Запуск upstream mtg в Docker
+
+Пример (адаптируйте параметры под ваш конфиг):
+
+```bash
+docker run -d --name mtg \
+  -p 3128:3128 \
+  --restart unless-stopped \
+  nineseconds/mtg:latest run --bind 0.0.0.0:3128 --secret dd000000000000000000000000000000
+```
+
+### 2) Запуск gateway
+
+```bash
+python gateway.py --listen-host 0.0.0.0 --upstream-host 127.0.0.1 --upstream-port 3128
+```
+
+Gateway будет периодически читать БД и открывать порты только для активных пользователей.
+
+### 3) Запуск web-admin
 
 ```bash
 python admin_panel.py
 ```
 
-Панель будет доступна по адресу:
+Web UI: `http://127.0.0.1:8000`
 
-- http://127.0.0.1:8000
+## Пользователи
 
-Функции панели:
-- просмотр пользователей;
-- добавление пользователя;
-- просмотр деталей пользователя;
-- переключение статуса активен/отключен;
-- удаление пользователя.
+### Через web-интерфейс
 
-## Запуск Gateway
+- создать пользователя (с авто-портом или вручную);
+- включить/выключить доступ;
+- удалить пользователя;
+- получить `tg://proxy` ссылку.
+
+### Через CLI
 
 ```bash
-python gateway.py --listen-host 0.0.0.0 --listen-port 9090 --upstream-host 127.0.0.1 --upstream-port 443
+python generate_token.py alice
+python generate_token.py bob --port 11555
 ```
 
-Параметры:
-- `--listen-host` / `--listen-port` — где слушать входящие подключения;
-- `--upstream-host` / `--upstream-port` — куда проксировать авторизованный трафик.
+## Важно
 
-## Пример клиентского протокола
-
-Клиент должен отправить токен первой строкой, затем обычный TCP-трафик:
-
-```text
-my_token_here
-<binary/text payload>
-```
-
-Если токен неверный, сервер отвечает:
-
-```text
-AUTH_FAILED
-```
-
-## Безопасность и рекомендации
-
-- Размещайте gateway за firewall.
-- Используйте длинные случайные токены.
-- Регулярно отключайте/удаляйте неактуальные токены.
-- Для production запускайте Flask через WSGI-сервер (gunicorn/uwsgi), а не debug-режим.
+- Убедитесь, что диапазон пользовательских портов открыт в firewall/security-group.
+- Не публикуйте админ-панель без авторизации (лучше держать за VPN/прокси).
+- `token` в БД служебный (для учета); для Telegram-клиента ключевые поля — `PUBLIC_HOST`, `listen_port`, `MTG_SECRET`.
