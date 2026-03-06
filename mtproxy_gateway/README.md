@@ -11,9 +11,17 @@
   - получить `tg://proxy` ссылку;
   - отключить / удалить пользователя.
 
-> Важно: Telegram-клиент не умеет отправлять произвольный «токен первой строкой», поэтому рабочая модель — **персональный порт на пользователя**.
+## Важно про запуск mtg
 
-## Быстрый старт (рабочая схема)
+Интеграция сделана под ваш рабочий формат:
+
+```bash
+nineseconds/mtg:2 simple-run -n 1.1.1.1 -i prefer-ipv4 0.0.0.0:443 <SECRET>
+```
+
+Именно эта схема используется в `docker-compose.yml` (через переменные окружения).
+
+## Быстрый старт
 
 1. Перейдите в папку:
 
@@ -27,50 +35,46 @@ cd mtproxy_gateway
 cp .env.example .env
 ```
 
-3. Укажите домен-прикрытие для FakeTLS (например `ru.wikipedia.org`) и сгенерируйте секрет:
+3. Сгенерируйте секрет (пример с вашим доменом):
 
 ```bash
-export MTG_FAKE_TLS_DOMAIN=ru.wikipedia.org
-docker run --rm nineseconds/mtg:2 generate-secret --hex ${MTG_FAKE_TLS_DOMAIN}
+docker run --rm nineseconds/mtg:2 generate-secret --hex ru.wikipedia.org
 ```
 
-Скопируйте полученный hex-секрет в `.env` как `MTG_SECRET` (обычно он начинается с `ee...`, это нормально для FakeTLS).
+4. Вставьте полученный секрет в `.env` как `MTG_SECRET`.
 
-4. Запустите стек:
+5. Запустите стек:
 
 ```bash
 docker compose up -d --build
 ```
 
-5. Откройте admin UI:
+6. Откройте admin UI:
 
 - `http://<ваш_хост>:<ADMIN_PORT>` (по умолчанию `8000`)
 
-6. Создавайте пользователей в UI — у каждого будет свой `port` и готовая `tg://proxy` ссылка.
-
-## Как именно запускается mtg в compose
-
-Используется корректный синтаксис для `nineseconds/mtg:2`:
-
-```bash
-mtg run --bind 0.0.0.0:<MTG_UPSTREAM_PORT> --secret <MTG_SECRET>
-```
-
-Это уже зашито в `docker-compose.yml`.
+7. Создавайте пользователей в UI — у каждого будет свой `port` и готовая `tg://proxy` ссылка.
 
 ## Переменные `.env`
 
-- `PUBLIC_HOST` — внешний IP/домен сервера (используется в `tg://proxy` ссылках).
-- `MTG_FAKE_TLS_DOMAIN` — домен для генерации FakeTLS секрета (`ru.wikipedia.org` и т.д.).
-- `MTG_SECRET` — секрет для контейнера `mtg`, сгенерированный через `generate-secret --hex`.
-- `MTG_UPSTREAM_PORT` — внутренний порт `mtg` в docker-сети (обычно `3128`).
-- `PORT_RANGE_START`, `PORT_RANGE_END` — диапазон портов, который gateway публикует для пользователей.
+- `PUBLIC_HOST` — внешний IP/домен сервера для `tg://proxy` ссылок.
+- `MTG_FAKE_TLS_HOST` — значение для `simple-run -n` (например, `1.1.1.1`).
+- `MTG_IP_MODE` — значение для `simple-run -i` (например, `prefer-ipv4`).
+- `MTG_SECRET` — секрет, сгенерированный `generate-secret --hex ...`.
+- `MTG_UPSTREAM_PORT` — порт mtg в docker-сети (по умолчанию `443`).
+- `PORT_RANGE_START`, `PORT_RANGE_END` — диапазон пользовательских внешних портов.
 - `ADMIN_PORT` — порт web-admin.
-- `GATEWAY_POLL_INTERVAL` — как часто gateway перечитывает БД пользователей.
+- `GATEWAY_POLL_INTERVAL` — интервал обновления портов gateway.
 
-## Диагностика если «не подключается»
+## Что делает compose для mtg
 
-Проверьте по шагам:
+Эквивалентная команда внутри compose:
+
+```bash
+mtg simple-run -n ${MTG_FAKE_TLS_HOST} -i ${MTG_IP_MODE} 0.0.0.0:${MTG_UPSTREAM_PORT} ${MTG_SECRET}
+```
+
+## Диагностика если не подключается
 
 ```bash
 docker compose ps
@@ -79,12 +83,12 @@ docker compose logs -f gateway
 docker compose logs -f admin
 ```
 
-Что важно:
+Проверьте:
 
-- `MTG_SECRET` обязательно должен быть сгенерирован именно для выбранного домена (`generate-secret --hex <domain>`);
-- `PUBLIC_HOST` должен указывать на реальный внешний адрес сервера;
-- диапазон `PORT_RANGE_START..PORT_RANGE_END` должен быть открыт в firewall/security-group;
-- клиент Telegram должен использовать ссылку из UI (server+port+secret).
+- корректен ли `MTG_SECRET`;
+- совпадает ли `PUBLIC_HOST` с реальным внешним адресом;
+- открыт ли диапазон `PORT_RANGE_START..PORT_RANGE_END` в firewall;
+- используется ли клиентом ссылка, выданная из UI.
 
 ## Управление
 
@@ -92,9 +96,3 @@ docker compose logs -f admin
 docker compose down
 docker compose down -v
 ```
-
-## Безопасность
-
-- Ограничьте доступ к admin UI (VPN, reverse-proxy auth, firewall).
-- Откройте во внешнюю сеть только диапазон пользовательских портов и `ADMIN_PORT` (если нужно).
-- Храните `.env` приватно.

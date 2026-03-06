@@ -1,7 +1,16 @@
 services:
   mtg:
     image: nineseconds/mtg:2
-    command: ["run", "--bind", "0.0.0.0:${MTG_UPSTREAM_PORT}", "--secret", "${MTG_SECRET}"]
+    command:
+      [
+        "simple-run",
+        "-n",
+        "${MTG_FAKE_TLS_HOST}",
+        "-i",
+        "${MTG_IP_MODE}",
+        "0.0.0.0:${MTG_UPSTREAM_PORT}",
+        "${MTG_SECRET}"
+      ]
     restart: unless-stopped
     expose:
       - "${MTG_UPSTREAM_PORT}"
