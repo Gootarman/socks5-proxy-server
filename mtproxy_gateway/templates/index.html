@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MTG Gateway Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f7fb; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+    .top { display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 12px; }
+    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #ddd; background:#fff; color:#111; cursor:pointer; }
+    .btn.small { padding: 4px 8px; font-size: 12px; }
+    .active { color: #15803d; font-weight: 700; }
+    .inactive { color: #b91c1c; font-weight: 700; }
+    .ok { color: #15803d; }
+    .bad { color: #b91c1c; }
+    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; word-break: break-all; }
+    .hint { margin-bottom: 12px; color: #4b5563; }
+    .monitor { display:grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap:10px; margin: 0 0 14px; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px; }
+    .card .label { color:#6b7280; font-size:12px; }
+    .card .value { font-size:20px; font-weight:700; margin-top:4px; }
+    .linkwrap { display:flex; gap:8px; align-items:flex-start; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top">
+      <h1>Пользователи MTG Gateway</h1>
+      <a class="btn" href="{{ url_for('add_user_page') }}">+ Добавить пользователя</a>
+    </div>
+
+    <div class="monitor" id="monitor">
+      <div class="card"><div class="label">Всего пользователей</div><div class="value" id="m_total">{{ monitor.total_users }}</div></div>
+      <div class="card"><div class="label">Активных</div><div class="value" id="m_active">{{ monitor.active_users }}</div></div>
+      <div class="card"><div class="label">Отключенных</div><div class="value" id="m_disabled">{{ monitor.disabled_users }}</div></div>
+      <div class="card"><div class="label">Upstream {{ monitor.upstream_target }}</div><div class="value" id="m_upstream">{{ 'OK' if monitor.upstream_ok else 'DOWN' }}</div></div>
+    </div>
+
+    <p class="hint">Публичный хост: <strong>{{ public_host }}</strong>. Кнопка "Копировать" копирует `tg://proxy` ссылку в один клик.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Port</th>
+          <th>Статус</th>
+          <th>Proxy link</th>
+          <th>Создан</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.username }}</td>
+          <td><code>{{ user.listen_port }}</code></td>
+          <td>
+            {% if user.is_active %}
+              <span class="active">Активен</span>
+            {% else %}
+              <span class="inactive">Отключен</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if user.proxy_link %}
+              <div class="linkwrap">
+                <code id="link-{{ user.id }}">{{ user.proxy_link }}</code>
+                <button class="btn small copy-btn" data-copy="{{ user.proxy_link|e }}">Копировать</button>
+              </div>
+            {% else %}
+              <span>Укажите MTG_SECRET в env</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at }}</td>
+          <td><a class="btn" href="{{ url_for('user_detail', user_id=user.id) }}">Открыть</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">Пока нет пользователей.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    async function copyText(text, button) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_) {
+        const area = document.createElement('textarea');
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        document.body.removeChild(area);
+      }
+      const old = button.textContent;
+      button.textContent = 'Скопировано';
+      setTimeout(() => button.textContent = old, 900);
+    }
+
+    document.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', () => copyText(btn.dataset.copy, btn));
+    });
+
+    async function refreshMonitor() {
+      try {
+        const resp = await fetch('/monitor.json', { cache: 'no-store' });
+        if (!resp.ok) return;
+        const m = await resp.json();
+        document.getElementById('m_total').textContent = m.total_users;
+        document.getElementById('m_active').textContent = m.active_users;
+        document.getElementById('m_disabled').textContent = m.disabled_users;
+        const up = document.getElementById('m_upstream');
+        up.textContent = m.upstream_ok ? 'OK' : 'DOWN';
+        up.className = m.upstream_ok ? 'value ok' : 'value bad';
+      } catch (_) {}
+    }
+
+    setInterval(refreshMonitor, 5000);
+  </script>
+</body>
+</html>

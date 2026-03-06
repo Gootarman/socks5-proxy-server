@@ -1,0 +1,100 @@
+# MTG Admin Gateway (for `nineseconds/mtg:2`)
+
+Этот модуль — админ-прослойка для `nineseconds/mtg`, упакованная в `docker-compose`.
+
+## Что это делает
+
+- поднимает контейнер `mtg`;
+- поднимает `gateway`, который открывает отдельный TCP-порт на каждого активного пользователя;
+- поднимает web-admin (`Flask`), где можно:
+  - создать пользователя;
+  - получить `tg://proxy` ссылку;
+  - отключить / удалить пользователя.
+
+## Важно про запуск mtg
+
+Интеграция сделана под ваш рабочий формат:
+
+```bash
+nineseconds/mtg:2 simple-run -n 1.1.1.1 -i prefer-ipv4 0.0.0.0:443 <SECRET>
+```
+
+Именно эта схема используется в `docker-compose.yml` (через переменные окружения).
+
+## Быстрый старт
+
+1. Перейдите в папку:
+
+```bash
+cd mtproxy_gateway
+```
+
+2. Подготовьте env:
+
+```bash
+cp .env.example .env
+```
+
+3. Сгенерируйте секрет (пример с вашим доменом):
+
+```bash
+docker run --rm nineseconds/mtg:2 generate-secret --hex ru.wikipedia.org
+```
+
+4. Вставьте полученный секрет в `.env` как `MTG_SECRET`.
+
+5. Запустите стек:
+
+```bash
+docker compose up -d --build
+```
+
+6. Откройте admin UI:
+
+- `http://<ваш_хост>:<ADMIN_PORT>` (по умолчанию `8000`)
+
+7. Создавайте пользователей в UI — у каждого будет свой `port` и готовая `tg://proxy` ссылка.
+
+## Переменные `.env`
+
+- `PUBLIC_HOST` — внешний IP/домен сервера для `tg://proxy` ссылок.
+- `MTG_FAKE_TLS_HOST` — значение для `simple-run -n` (например, `1.1.1.1`).
+- `MTG_IP_MODE` — значение для `simple-run -i` (например, `prefer-ipv4`).
+- `MTG_SECRET` — секрет, сгенерированный `generate-secret --hex ...`.
+- `MTG_UPSTREAM_PORT` — порт mtg в docker-сети (по умолчанию `443`).
+- `PORT_RANGE_START`, `PORT_RANGE_END` — диапазон пользовательских внешних портов.
+- `ADMIN_PORT` — порт web-admin.
+- `GATEWAY_POLL_INTERVAL` — интервал обновления портов gateway.
+
+## Что делает compose для mtg
+
+Эквивалентная команда внутри compose:
+
+```bash
+mtg simple-run -n ${MTG_FAKE_TLS_HOST} -i ${MTG_IP_MODE} 0.0.0.0:${MTG_UPSTREAM_PORT} ${MTG_SECRET}
+```
+
+## Диагностика если не подключается
+
+```bash
+docker compose ps
+docker compose logs -f mtg
+docker compose logs -f gateway
+docker compose logs -f admin
+```
+
+Проверьте:
+
+- корректен ли `MTG_SECRET`;
+- совпадает ли `PUBLIC_HOST` с реальным внешним адресом;
+- открыт ли диапазон `PORT_RANGE_START..PORT_RANGE_END` в firewall;
+- используется ли клиентом ссылка, выданная из UI.
+- если пользователь удалён, но порт сразу снова включился — перезапустите `gateway` и `admin`: это применит миграцию БД и уберёт дубликаты портов из старых схем.
+- после отключения/удаления пользователя gateway закрывает порт и разрывает активные подключения в течение интервала `GATEWAY_POLL_INTERVAL`.
+
+## Управление
+
+```bash
+docker compose down
+docker compose down -v
+```
