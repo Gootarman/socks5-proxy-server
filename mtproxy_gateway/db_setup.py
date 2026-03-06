@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "users.db"
+DB_PATH = Path(os.getenv("DB_PATH", Path(__file__).resolve().parent / "users.db"))
 
 
 SCHEMA = """
@@ -42,6 +43,7 @@ def migrate_schema(connection: sqlite3.Connection) -> None:
 
 
 def init_db() -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_connection() as connection:
         connection.execute(SCHEMA)
         migrate_schema(connection)

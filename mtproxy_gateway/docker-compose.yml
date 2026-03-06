@@ -1,0 +1,52 @@
+services:
+  mtg:
+    image: nineseconds/mtg:latest
+    command: ["run", "--bind", "0.0.0.0:${MTG_UPSTREAM_PORT}", "--secret", "${MTG_SECRET}"]
+    restart: unless-stopped
+    expose:
+      - "${MTG_UPSTREAM_PORT}"
+
+  gateway:
+    build: .
+    command:
+      [
+        "python",
+        "gateway.py",
+        "--listen-host",
+        "0.0.0.0",
+        "--upstream-host",
+        "mtg",
+        "--upstream-port",
+        "${MTG_UPSTREAM_PORT}",
+        "--poll-interval",
+        "${GATEWAY_POLL_INTERVAL}"
+      ]
+    environment:
+      DB_PATH: /data/users.db
+    volumes:
+      - gateway_data:/data
+    ports:
+      - "${PORT_RANGE_START}-${PORT_RANGE_END}:${PORT_RANGE_START}-${PORT_RANGE_END}"
+    depends_on:
+      - mtg
+    restart: unless-stopped
+
+  admin:
+    build: .
+    command: ["python", "admin_panel.py"]
+    environment:
+      DB_PATH: /data/users.db
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      MTG_SECRET: ${MTG_SECRET}
+      PORT_RANGE_START: ${PORT_RANGE_START}
+      PORT_RANGE_END: ${PORT_RANGE_END}
+    volumes:
+      - gateway_data:/data
+    ports:
+      - "${ADMIN_PORT}:8000"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  gateway_data:
