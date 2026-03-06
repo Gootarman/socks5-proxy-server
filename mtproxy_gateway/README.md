@@ -34,7 +34,7 @@ export MTG_FAKE_TLS_DOMAIN=ru.wikipedia.org
 docker run --rm nineseconds/mtg:2 generate-secret --hex ${MTG_FAKE_TLS_DOMAIN}
 ```
 
-Скопируйте полученный hex-секрет в `.env` как `MTG_SECRET`.
+Скопируйте полученный hex-секрет в `.env` как `MTG_SECRET` (обычно он начинается с `ee...`, это нормально для FakeTLS).
 
 4. Запустите стек:
 
@@ -53,7 +53,7 @@ docker compose up -d --build
 Используется корректный синтаксис для `nineseconds/mtg:2`:
 
 ```bash
-mtg run <MTG_SECRET> --bind-to 0.0.0.0:<MTG_UPSTREAM_PORT>
+mtg run --bind-to 0.0.0.0:<MTG_UPSTREAM_PORT> --secret <MTG_SECRET>
 ```
 
 Это уже зашито в `docker-compose.yml`.
