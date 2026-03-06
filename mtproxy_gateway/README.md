@@ -1,4 +1,4 @@
-# MTG Admin Gateway (for `nineseconds/mtg`)
+# MTG Admin Gateway (for `nineseconds/mtg:2`)
 
 Этот модуль — админ-прослойка для `nineseconds/mtg`, упакованная в `docker-compose`.
 
@@ -13,22 +13,7 @@
 
 > Важно: Telegram-клиент не умеет отправлять произвольный «токен первой строкой», поэтому рабочая модель — **персональный порт на пользователя**.
 
-## Структура
-
-```text
-mtproxy_gateway/
-├─ docker-compose.yml
-├─ Dockerfile
-├─ .env.example
-├─ admin_panel.py
-├─ gateway.py
-├─ db_setup.py
-├─ generate_token.py
-├─ templates/
-└─ requirements.txt
-```
-
-## Быстрый старт через Docker Compose
+## Быстрый старт (рабочая схема)
 
 1. Перейдите в папку:
 
@@ -40,52 +25,72 @@ cd mtproxy_gateway
 
 ```bash
 cp .env.example .env
-# отредактируйте PUBLIC_HOST и MTG_SECRET
 ```
 
-3. Запустите стек:
+3. Укажите домен-прикрытие для FakeTLS (например `ru.wikipedia.org`) и сгенерируйте секрет:
+
+```bash
+export MTG_FAKE_TLS_DOMAIN=ru.wikipedia.org
+docker run --rm nineseconds/mtg:2 generate-secret --hex ${MTG_FAKE_TLS_DOMAIN}
+```
+
+Скопируйте полученный hex-секрет в `.env` как `MTG_SECRET`.
+
+4. Запустите стек:
 
 ```bash
 docker compose up -d --build
 ```
 
-4. Откройте admin UI:
+5. Откройте admin UI:
 
-- `http://<ваш_хост>:${ADMIN_PORT}` (по умолчанию `8000`)
+- `http://<ваш_хост>:<ADMIN_PORT>` (по умолчанию `8000`)
+
+6. Создавайте пользователей в UI — у каждого будет свой `port` и готовая `tg://proxy` ссылка.
+
+## Как именно запускается mtg в compose
+
+Используется корректный синтаксис для `nineseconds/mtg:2`:
+
+```bash
+mtg run <MTG_SECRET> --bind-to 0.0.0.0:<MTG_UPSTREAM_PORT>
+```
+
+Это уже зашито в `docker-compose.yml`.
 
 ## Переменные `.env`
 
 - `PUBLIC_HOST` — внешний IP/домен сервера (используется в `tg://proxy` ссылках).
-- `MTG_SECRET` — секрет для контейнера `mtg`.
+- `MTG_FAKE_TLS_DOMAIN` — домен для генерации FakeTLS секрета (`ru.wikipedia.org` и т.д.).
+- `MTG_SECRET` — секрет для контейнера `mtg`, сгенерированный через `generate-secret --hex`.
 - `MTG_UPSTREAM_PORT` — внутренний порт `mtg` в docker-сети (обычно `3128`).
 - `PORT_RANGE_START`, `PORT_RANGE_END` — диапазон портов, который gateway публикует для пользователей.
 - `ADMIN_PORT` — порт web-admin.
 - `GATEWAY_POLL_INTERVAL` — как часто gateway перечитывает БД пользователей.
 
-## Как работает доступ
+## Диагностика если «не подключается»
 
-- При создании пользователя ему назначается `listen_port` (авто из диапазона или вручную).
-- Gateway открывает этот порт и проксирует в `mtg`.
-- В UI показывается готовая ссылка:
-  - `tg://proxy?server=<PUBLIC_HOST>&port=<listen_port>&secret=<MTG_SECRET>`
-- Если пользователя отключить, gateway закроет его порт.
+Проверьте по шагам:
+
+```bash
+docker compose ps
+docker compose logs -f mtg
+docker compose logs -f gateway
+docker compose logs -f admin
+```
+
+Что важно:
+
+- `MTG_SECRET` обязательно должен быть сгенерирован именно для выбранного домена (`generate-secret --hex <domain>`);
+- `PUBLIC_HOST` должен указывать на реальный внешний адрес сервера;
+- диапазон `PORT_RANGE_START..PORT_RANGE_END` должен быть открыт в firewall/security-group;
+- клиент Telegram должен использовать ссылку из UI (server+port+secret).
 
 ## Управление
 
 ```bash
-docker compose logs -f admin gateway mtg
 docker compose down
 docker compose down -v
-```
-
-## Локальный запуск без Docker (опционально)
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python db_setup.py
-python admin_panel.py
 ```
 
 ## Безопасность

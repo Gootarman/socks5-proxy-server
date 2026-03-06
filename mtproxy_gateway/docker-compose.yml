@@ -1,7 +1,7 @@
 services:
   mtg:
-    image: nineseconds/mtg:latest
-    command: ["run", "--bind", "0.0.0.0:${MTG_UPSTREAM_PORT}", "--secret", "${MTG_SECRET}"]
+    image: nineseconds/mtg:2
+    command: ["run", "${MTG_SECRET}", "--bind-to", "0.0.0.0:${MTG_UPSTREAM_PORT}"]
     restart: unless-stopped
     expose:
       - "${MTG_UPSTREAM_PORT}"
@@ -40,6 +40,7 @@ services:
       MTG_SECRET: ${MTG_SECRET}
       PORT_RANGE_START: ${PORT_RANGE_START}
       PORT_RANGE_END: ${PORT_RANGE_END}
+      ADMIN_PORT: 8000
     volumes:
       - gateway_data:/data
     ports:
