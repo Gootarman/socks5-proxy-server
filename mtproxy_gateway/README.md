@@ -53,7 +53,7 @@ docker compose up -d --build
 Используется корректный синтаксис для `nineseconds/mtg:2`:
 
 ```bash
-mtg run --bind-to 0.0.0.0:<MTG_UPSTREAM_PORT> --secret <MTG_SECRET>
+mtg run --bind 0.0.0.0:<MTG_UPSTREAM_PORT> --secret <MTG_SECRET>
 ```
 
 Это уже зашито в `docker-compose.yml`.
