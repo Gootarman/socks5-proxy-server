@@ -1,5 +1,7 @@
 # MTG Admin Gateway (for `nineseconds/mtg:2`)
 
+Подробная внутренняя механика описана в файле `SERVICE_MECHANICS.md`.
+
 Этот модуль — админ-прослойка для `nineseconds/mtg`, упакованная в `docker-compose`.
 
 ## Что это делает
