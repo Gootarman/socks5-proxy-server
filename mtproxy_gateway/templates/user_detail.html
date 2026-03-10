@@ -5,27 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Пользователь {{ user.username }}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background:#f6f7fb; }
-    .container { max-width: 800px; margin: 0 auto; background:#fff; padding:20px; border-radius:10px; }
-    .row { margin-bottom:8px; }
-    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; word-break: break-all; }
-    .actions { margin-top:18px; display:flex; gap:10px; }
-    button, a { padding:10px 14px; border-radius:8px; border:1px solid #ddd; background:#fff; text-decoration:none; cursor:pointer; color:#111; }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; background: #060f23; color: #e2e8f0; }
+    .container { max-width: 820px; margin: 32px auto; background:#091631; border:1px solid #243b65; padding:20px; border-radius:14px; }
+    .row { margin-bottom:10px; }
+    code { background:#102349; padding:2px 6px; border-radius:4px; color:#bfdbfe; word-break: break-all; }
+    .actions { margin-top:20px; display:flex; gap:10px; }
+    button, a { padding:10px 14px; border-radius:10px; border:1px solid #36507b; background:#0a1a3a; color:#dbeafe; text-decoration:none; cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Пользователь #{{ user.id }}</h1>
-    <div class="row"><strong>Username:</strong> {{ user.username }}</div>
-    <div class="row"><strong>Служебный токен:</strong> <code>{{ user.token }}</code></div>
-    <div class="row"><strong>Публичный host:</strong> {{ public_host }}</div>
+    <h1>{{ user.username }}</h1>
     <div class="row"><strong>Порт:</strong> <code>{{ user.listen_port }}</code></div>
     <div class="row"><strong>Статус:</strong> {{ 'Активен' if user.is_active else 'Отключен' }}</div>
     <div class="row"><strong>Создан:</strong> {{ user.created_at }}</div>
     <div class="row"><strong>Ссылка:</strong>
       {% if user.proxy_link %}
-      <code id="user-link">{{ user.proxy_link }}</code>
-      <button type="button" class="copy-btn" data-copy="{{ user.proxy_link|e }}">Копировать</button>
+      <button type="button" class="copy-btn" data-copy="{{ user.proxy_link|e }}">Скопировать ссылку подключения</button>
       {% else %}
       укажите переменную окружения MTG_SECRET
       {% endif %}
@@ -52,7 +48,7 @@
         catch (_) {
           const area = document.createElement('textarea'); area.value = text; document.body.appendChild(area); area.select(); document.execCommand('copy'); document.body.removeChild(area);
         }
-        const old = btn.textContent; btn.textContent = "Скопировано"; setTimeout(() => btn.textContent = old, 900);
+        const old = btn.textContent; btn.textContent = 'Скопировано'; setTimeout(() => btn.textContent = old, 900);
       });
     }
   </script>
