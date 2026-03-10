@@ -29,7 +29,12 @@
   <div class="container">
     <div class="top">
       <h1>Пользователи MTG Gateway</h1>
-      <a class="btn" href="{{ url_for('add_user_page') }}">+ Добавить пользователя</a>
+      <div style="display:flex; gap:8px;">
+        <form method="post" action="{{ url_for('restart_gateway') }}">
+          <button class="btn" type="submit">Перезапустить gateway</button>
+        </form>
+        <a class="btn" href="{{ url_for('add_user_page') }}">+ Добавить пользователя</a>
+      </div>
     </div>
 
     <div class="monitor" id="monitor">

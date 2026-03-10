@@ -28,6 +28,7 @@ class UserGatewayManager:
         self.enforce_interval = enforce_interval
         self.servers: dict[int, asyncio.AbstractServer] = {}
         self.clients_by_port: dict[int, dict[asyncio.StreamWriter, float]] = {}
+        self.last_restart_token = 0
 
     async def relay_stream(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
@@ -85,6 +86,20 @@ class UserGatewayManager:
             ).fetchall()
         return {int(row["listen_port"]) for row in rows if row["listen_port"] is not None}
 
+    def get_restart_token(self) -> int:
+        with get_connection() as connection:
+            row = connection.execute(
+                "SELECT restart_token FROM gateway_control WHERE id = 1"
+            ).fetchone()
+        return int(row["restart_token"]) if row else 0
+
+    async def hard_refresh(self) -> None:
+        current_ports = sorted(self.servers.keys())
+        for port in current_ports:
+            await self.close_port(port)
+        await self.sync_ports()
+        print("Gateway restart signal applied: listeners fully refreshed")
+
     async def open_port(self, port: int) -> None:
         if port in self.servers:
             return
@@ -134,9 +149,14 @@ class UserGatewayManager:
 
     async def run(self) -> None:
         init_db()
+        self.last_restart_token = self.get_restart_token()
         next_enforce = time.monotonic() + self.enforce_interval
         while True:
             await self.sync_ports()
+            token = self.get_restart_token()
+            if token != self.last_restart_token:
+                self.last_restart_token = token
+                await self.hard_refresh()
             now = time.monotonic()
             if now >= next_enforce:
                 await self.enforce_client_lifetime()

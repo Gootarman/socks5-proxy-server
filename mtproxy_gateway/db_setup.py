@@ -28,6 +28,14 @@ CREATE TABLE IF NOT EXISTS reserved_ports (
 );
 """
 
+GATEWAY_CONTROL_SCHEMA = """
+CREATE TABLE IF NOT EXISTS gateway_control (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    restart_token INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 
 def get_connection(db_path: Path = DB_PATH) -> sqlite3.Connection:
     connection = sqlite3.connect(db_path)
@@ -134,6 +142,13 @@ def _ensure_reserved_ports(connection: sqlite3.Connection) -> None:
         )
 
 
+def _ensure_gateway_control(connection: sqlite3.Connection) -> None:
+    connection.execute(GATEWAY_CONTROL_SCHEMA)
+    connection.execute(
+        "INSERT OR IGNORE INTO gateway_control (id, restart_token) VALUES (1, 0)"
+    )
+
+
 def migrate_schema(connection: sqlite3.Connection) -> None:
     if not _table_exists(connection, "users"):
         return
@@ -142,6 +157,7 @@ def migrate_schema(connection: sqlite3.Connection) -> None:
         _rebuild_users_table(connection)
 
     _ensure_reserved_ports(connection)
+    _ensure_gateway_control(connection)
     connection.commit()
 
 

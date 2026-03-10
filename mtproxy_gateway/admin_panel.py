@@ -36,6 +36,20 @@ def check_upstream(host: str, port: int) -> bool:
         return False
 
 
+
+
+def request_gateway_restart() -> None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE gateway_control
+            SET restart_token = restart_token + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = 1
+            """
+        )
+        connection.commit()
+
 def monitor_data() -> dict:
     with get_connection() as connection:
         total_users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -90,6 +104,13 @@ def index():
 def monitor_json():
     return jsonify(monitor_data())
 
+
+
+
+@app.post("/gateway/restart")
+def restart_gateway():
+    request_gateway_restart()
+    return redirect(url_for("index"))
 
 @app.route("/add", methods=["GET", "POST"])
 def add_user_page():
@@ -146,6 +167,7 @@ def delete_user(user_id: int):
     with get_connection() as connection:
         connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
         connection.commit()
+    request_gateway_restart()
     return redirect(url_for("index"))
 
 
