@@ -1,6 +1,7 @@
 # MTG Admin Gateway (for `nineseconds/mtg:2`)
 
 Подробная внутренняя механика описана в файле `SERVICE_MECHANICS.md`.
+Ручные операции с SQLite (просмотр/добавление/удаление пользователей) описаны в `DB_MANUAL.md`.
 
 Этот модуль — админ-прослойка для `nineseconds/mtg`, упакованная в `docker-compose`.
 
