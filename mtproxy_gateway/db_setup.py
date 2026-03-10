@@ -28,6 +28,15 @@ CREATE TABLE IF NOT EXISTS reserved_ports (
 );
 """
 
+PORT_OVERRIDES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS port_overrides (
+    port INTEGER PRIMARY KEY,
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+
 GATEWAY_CONTROL_SCHEMA = """
 CREATE TABLE IF NOT EXISTS gateway_control (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -142,6 +151,10 @@ def _ensure_reserved_ports(connection: sqlite3.Connection) -> None:
         )
 
 
+def _ensure_port_overrides(connection: sqlite3.Connection) -> None:
+    connection.execute(PORT_OVERRIDES_SCHEMA)
+
+
 def _ensure_gateway_control(connection: sqlite3.Connection) -> None:
     connection.execute(GATEWAY_CONTROL_SCHEMA)
     connection.execute(
@@ -157,6 +170,7 @@ def migrate_schema(connection: sqlite3.Connection) -> None:
         _rebuild_users_table(connection)
 
     _ensure_reserved_ports(connection)
+    _ensure_port_overrides(connection)
     _ensure_gateway_control(connection)
     connection.commit()
 

@@ -82,7 +82,12 @@ class UserGatewayManager:
     def active_ports(self) -> set[int]:
         with get_connection() as connection:
             rows = connection.execute(
-                "SELECT listen_port FROM users WHERE is_active = 1"
+                """
+                SELECT u.listen_port
+                FROM users u
+                LEFT JOIN port_overrides po ON po.port = u.listen_port
+                WHERE u.is_active = 1 AND COALESCE(po.is_enabled, 1) = 1
+                """
             ).fetchall()
         return {int(row["listen_port"]) for row in rows if row["listen_port"] is not None}
 

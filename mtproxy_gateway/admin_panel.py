@@ -36,8 +36,6 @@ def check_upstream(host: str, port: int) -> bool:
         return False
 
 
-
-
 def request_gateway_restart() -> None:
     with get_connection() as connection:
         connection.execute(
@@ -50,6 +48,58 @@ def request_gateway_restart() -> None:
         )
         connection.commit()
 
+
+def build_port_overview() -> list[dict]:
+    with get_connection() as connection:
+        users_rows = connection.execute(
+            "SELECT listen_port, username, is_active FROM users"
+        ).fetchall()
+        users_map = {int(r["listen_port"]): dict(r) for r in users_rows if r["listen_port"] is not None}
+
+        reserved_set = {
+            int(r[0])
+            for r in connection.execute("SELECT port FROM reserved_ports").fetchall()
+        }
+        blocked_set = {
+            int(r[0])
+            for r in connection.execute("SELECT port FROM port_overrides WHERE is_enabled = 0").fetchall()
+        }
+
+    overview: list[dict] = []
+    for port in range(PORT_RANGE_START, PORT_RANGE_END + 1):
+        user = users_map.get(port)
+        blocked = port in blocked_set
+        reserved = port in reserved_set
+
+        if blocked:
+            status = "blocked"
+            label = "Отключен админом"
+        elif user and user["is_active"]:
+            status = "active"
+            label = f"Активный пользователь: {user['username']}"
+        elif user and not user["is_active"]:
+            status = "inactive_user"
+            label = f"Пользователь отключен: {user['username']}"
+        elif reserved:
+            status = "reserved"
+            label = "Зарезервирован (повторно не выдается)"
+        else:
+            status = "free"
+            label = "Доступен"
+
+        overview.append(
+            {
+                "port": port,
+                "status": status,
+                "label": label,
+                "is_blocked": blocked,
+                "username": user["username"] if user else None,
+            }
+        )
+
+    return overview
+
+
 def monitor_data() -> dict:
     with get_connection() as connection:
         total_users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
@@ -58,17 +108,30 @@ def monitor_data() -> dict:
         ).fetchone()[0]
         disabled_users = total_users - active_users
         reserved_ports = connection.execute("SELECT COUNT(*) FROM reserved_ports").fetchone()[0]
-        active_ports_rows = connection.execute("SELECT listen_port FROM users WHERE is_active = 1 ORDER BY listen_port").fetchall()
+        active_ports_rows = connection.execute(
+            """
+            SELECT u.listen_port
+            FROM users u
+            LEFT JOIN port_overrides po ON po.port = u.listen_port
+            WHERE u.is_active = 1 AND COALESCE(po.is_enabled, 1) = 1
+            ORDER BY u.listen_port
+            """
+        ).fetchall()
         active_ports = [int(r[0]) for r in active_ports_rows]
 
+        blocked_ports = connection.execute(
+            "SELECT COUNT(*) FROM port_overrides WHERE is_enabled = 0"
+        ).fetchone()[0]
+
     pool_size = max(PORT_RANGE_END - PORT_RANGE_START + 1, 0)
-    free_ports = max(pool_size - reserved_ports, 0)
+    free_ports = max(pool_size - reserved_ports - blocked_ports, 0)
 
     return {
         "total_users": total_users,
         "active_users": active_users,
         "disabled_users": disabled_users,
         "reserved_ports": reserved_ports,
+        "blocked_ports": blocked_ports,
         "free_ports": free_ports,
         "active_ports": active_ports,
         "upstream_ok": check_upstream(MONITOR_UPSTREAM_HOST, MONITOR_UPSTREAM_PORT),
@@ -97,20 +160,49 @@ def index():
         users=users_with_links,
         public_host=PUBLIC_HOST,
         monitor=monitor_data(),
+        port_overview=build_port_overview(),
     )
 
 
 @app.get("/monitor.json")
 def monitor_json():
-    return jsonify(monitor_data())
-
-
+    payload = monitor_data()
+    payload["port_overview"] = build_port_overview()
+    return jsonify(payload)
 
 
 @app.post("/gateway/restart")
 def restart_gateway():
     request_gateway_restart()
     return redirect(url_for("index"))
+
+
+@app.post("/port/<int:port>/toggle")
+def toggle_port(port: int):
+    if port < PORT_RANGE_START or port > PORT_RANGE_END:
+        return redirect(url_for("index"))
+
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT is_enabled FROM port_overrides WHERE port = ?", (port,)
+        ).fetchone()
+        if row is None:
+            connection.execute(
+                "INSERT INTO port_overrides (port, is_enabled, updated_at) VALUES (?, 0, CURRENT_TIMESTAMP)",
+                (port,),
+            )
+        elif int(row["is_enabled"]) == 0:
+            connection.execute("DELETE FROM port_overrides WHERE port = ?", (port,))
+        else:
+            connection.execute(
+                "UPDATE port_overrides SET is_enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE port = ?",
+                (port,),
+            )
+        connection.commit()
+
+    request_gateway_restart()
+    return redirect(url_for("index"))
+
 
 @app.route("/add", methods=["GET", "POST"])
 def add_user_page():

@@ -5,33 +5,38 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MTG Gateway Admin</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f6f7fb; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
-    .top { display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 12px; }
-    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #ddd; background:#fff; color:#111; cursor:pointer; }
+    body { font-family: Inter, Arial, sans-serif; margin: 0; background: radial-gradient(circle at 20% 20%, #172554, #0f172a 40%, #020617); color: #e5e7eb; }
+    .container { max-width: 1250px; margin: 0 auto; padding: 24px; }
+    .panel { background: rgba(15, 23, 42, 0.82); border: 1px solid #334155; border-radius: 14px; padding: 16px; box-shadow: 0 10px 40px rgba(2,6,23,.35); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #334155; text-align: left; vertical-align: top; }
+    .top { display:flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
+    .btn { display:inline-block; padding: 8px 12px; border-radius: 8px; text-decoration:none; border:1px solid #475569; background:#0f172a; color:#e2e8f0; cursor:pointer; }
     .btn.small { padding: 4px 8px; font-size: 12px; }
-    .active { color: #15803d; font-weight: 700; }
-    .inactive { color: #b91c1c; font-weight: 700; }
-    .ok { color: #15803d; }
-    .bad { color: #b91c1c; }
-    code { background:#f3f4f6; padding:2px 6px; border-radius:4px; word-break: break-all; }
-    .hint { margin-bottom: 12px; color: #4b5563; }
-    .monitor { display:grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap:10px; margin: 0 0 14px; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:10px; }
-    .card .label { color:#6b7280; font-size:12px; }
+    .btn.warn { border-color: #dc2626; color:#fecaca; }
+    .active { color: #22c55e; font-weight: 700; }
+    .inactive { color: #f87171; font-weight: 700; }
+    .ok { color: #22c55e; }
+    .bad { color: #f87171; }
+    code { background:#1e293b; padding:2px 6px; border-radius:4px; word-break: break-all; color:#bfdbfe; }
+    .hint { margin: 10px 0 14px; color: #cbd5e1; }
+    .monitor { display:grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap:10px; margin: 0 0 14px; }
+    .card { background:#0b1224; border:1px solid #334155; border-radius:10px; padding:10px; }
+    .card .label { color:#94a3b8; font-size:12px; }
     .card .value { font-size:20px; font-weight:700; margin-top:4px; }
     .linkwrap { display:flex; gap:8px; align-items:flex-start; }
+    .grid { display:grid; grid-template-columns: 1.4fr 1fr; gap:16px; }
+    .badge { padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #475569; }
+    .b-free{color:#22c55e;border-color:#22c55e55}.b-reserved{color:#fbbf24;border-color:#fbbf2455}.b-active{color:#38bdf8;border-color:#38bdf855}.b-inactive{color:#f87171;border-color:#f8717155}.b-blocked{color:#f43f5e;border-color:#f43f5e66}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="top">
-      <h1>Пользователи MTG Gateway</h1>
+      <h1>MTG Gateway Admin</h1>
       <div style="display:flex; gap:8px;">
         <form method="post" action="{{ url_for('restart_gateway') }}">
-          <button class="btn" type="submit">Перезапустить gateway</button>
+          <button class="btn warn" type="submit">Перезапустить gateway</button>
         </form>
         <a class="btn" href="{{ url_for('add_user_page') }}">+ Добавить пользователя</a>
       </div>
@@ -41,81 +46,91 @@
       <div class="card"><div class="label">Всего пользователей</div><div class="value" id="m_total">{{ monitor.total_users }}</div></div>
       <div class="card"><div class="label">Активных</div><div class="value" id="m_active">{{ monitor.active_users }}</div></div>
       <div class="card"><div class="label">Отключенных</div><div class="value" id="m_disabled">{{ monitor.disabled_users }}</div></div>
+      <div class="card"><div class="label">Reserved ports</div><div class="value" id="m_reserved">{{ monitor.reserved_ports }}</div></div>
+      <div class="card"><div class="label">Blocked ports</div><div class="value" id="m_blocked">{{ monitor.blocked_ports }}</div></div>
+      <div class="card"><div class="label">Free ports</div><div class="value" id="m_free">{{ monitor.free_ports }}</div></div>
       <div class="card"><div class="label">Upstream {{ monitor.upstream_target }}</div><div class="value" id="m_upstream">{{ 'OK' if monitor.upstream_ok else 'DOWN' }}</div></div>
-          <div class="card"><div class="label">Зарезервировано портов</div><div class="value" id="m_reserved">{{ monitor.reserved_ports }}</div></div>
-      <div class="card"><div class="label">Свободно портов</div><div class="value" id="m_free">{{ monitor.free_ports }}</div></div>
     </div>
 
-    <p class="hint">Публичный хост: <strong>{{ public_host }}</strong>. Кнопка "Копировать" копирует `tg://proxy` ссылку в один клик.</p>
+    <p class="hint">Публичный хост: <strong>{{ public_host }}</strong>. Активные порты: <code id="m_active_ports">{{ monitor.active_ports|join(', ') if monitor.active_ports else '-' }}</code></p>
 
-
-    <p class="hint">Активные порты: <code id="m_active_ports">{{ monitor.active_ports|join(", ") if monitor.active_ports else "-" }}</code></p>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Username</th>
-          <th>Port</th>
-          <th>Статус</th>
-          <th>Proxy link</th>
-          <th>Создан</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for user in users %}
-        <tr>
-          <td>{{ user.id }}</td>
-          <td>{{ user.username }}</td>
-          <td><code>{{ user.listen_port }}</code></td>
-          <td>
-            {% if user.is_active %}
-              <span class="active">Активен</span>
+    <div class="grid">
+      <div class="panel">
+        <h3>Пользователи</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Username</th><th>Port</th><th>Статус</th><th>Proxy link</th><th>Создан</th><th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.id }}</td>
+              <td>{{ user.username }}</td>
+              <td><code>{{ user.listen_port }}</code></td>
+              <td>{% if user.is_active %}<span class="active">Активен</span>{% else %}<span class="inactive">Отключен</span>{% endif %}</td>
+              <td>
+                {% if user.proxy_link %}
+                  <div class="linkwrap">
+                    <code>{{ user.proxy_link }}</code>
+                    <button class="btn small copy-btn" data-copy="{{ user.proxy_link|e }}">Копировать</button>
+                  </div>
+                {% else %}
+                  <span>Укажите MTG_SECRET</span>
+                {% endif %}
+              </td>
+              <td>{{ user.created_at }}</td>
+              <td><a class="btn small" href="{{ url_for('user_detail', user_id=user.id) }}">Открыть</a></td>
+            </tr>
             {% else %}
-              <span class="inactive">Отключен</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if user.proxy_link %}
-              <div class="linkwrap">
-                <code id="link-{{ user.id }}">{{ user.proxy_link }}</code>
-                <button class="btn small copy-btn" data-copy="{{ user.proxy_link|e }}">Копировать</button>
-              </div>
-            {% else %}
-              <span>Укажите MTG_SECRET в env</span>
-            {% endif %}
-          </td>
-          <td>{{ user.created_at }}</td>
-          <td><a class="btn" href="{{ url_for('user_detail', user_id=user.id) }}">Открыть</a></td>
-        </tr>
-        {% else %}
-        <tr><td colspan="7">Пока нет пользователей.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            <tr><td colspan="7">Пока нет пользователей.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h3>Контроль портов ({{ monitor.active_ports|length }} active)</h3>
+        <table>
+          <thead><tr><th>Port</th><th>Статус</th><th>Пользователь</th><th>Управление</th></tr></thead>
+          <tbody id="ports-body">
+            {% for p in port_overview %}
+            <tr>
+              <td><code>{{ p.port }}</code></td>
+              <td>
+                {% if p.status == 'free' %}<span class="badge b-free">Доступен</span>
+                {% elif p.status == 'reserved' %}<span class="badge b-reserved">Reserved</span>
+                {% elif p.status == 'active' %}<span class="badge b-active">Активен</span>
+                {% elif p.status == 'inactive_user' %}<span class="badge b-inactive">Пользователь off</span>
+                {% elif p.status == 'blocked' %}<span class="badge b-blocked">Отключен админом</span>
+                {% endif %}
+              </td>
+              <td>{{ p.username or '-' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('toggle_port', port=p.port) }}">
+                  <button class="btn small" type="submit">{{ 'Включить' if p.is_blocked else 'Отключить' }}</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
     async function copyText(text, button) {
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch (_) {
-        const area = document.createElement('textarea');
-        area.value = text;
-        document.body.appendChild(area);
-        area.select();
-        document.execCommand('copy');
-        document.body.removeChild(area);
+      try { await navigator.clipboard.writeText(text); }
+      catch (_) {
+        const area = document.createElement('textarea'); area.value = text;
+        document.body.appendChild(area); area.select(); document.execCommand('copy'); document.body.removeChild(area);
       }
-      const old = button.textContent;
-      button.textContent = 'Скопировано';
-      setTimeout(() => button.textContent = old, 900);
+      const old = button.textContent; button.textContent = 'Скопировано'; setTimeout(() => button.textContent = old, 900);
     }
 
-    document.querySelectorAll('.copy-btn').forEach((btn) => {
-      btn.addEventListener('click', () => copyText(btn.dataset.copy, btn));
-    });
+    document.querySelectorAll('.copy-btn').forEach((btn) => btn.addEventListener('click', () => copyText(btn.dataset.copy, btn)));
 
     async function refreshMonitor() {
       try {
@@ -126,11 +141,10 @@
         document.getElementById('m_active').textContent = m.active_users;
         document.getElementById('m_disabled').textContent = m.disabled_users;
         document.getElementById('m_reserved').textContent = m.reserved_ports;
+        document.getElementById('m_blocked').textContent = m.blocked_ports;
         document.getElementById('m_free').textContent = m.free_ports;
         document.getElementById('m_active_ports').textContent = (m.active_ports && m.active_ports.length) ? m.active_ports.join(', ') : '-';
-        const up = document.getElementById('m_upstream');
-        up.textContent = m.upstream_ok ? 'OK' : 'DOWN';
-        up.className = m.upstream_ok ? 'value ok' : 'value bad';
+        const up = document.getElementById('m_upstream'); up.textContent = m.upstream_ok ? 'OK' : 'DOWN'; up.className = m.upstream_ok ? 'value ok' : 'value bad';
       } catch (_) {}
     }
 
