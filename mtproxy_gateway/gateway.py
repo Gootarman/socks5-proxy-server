@@ -185,7 +185,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--client-max-age",
         type=float,
-        default=45.0,
+        default=0.0,
         help="Force disconnect client sessions older than this many seconds (0 disables)",
     )
     parser.add_argument(

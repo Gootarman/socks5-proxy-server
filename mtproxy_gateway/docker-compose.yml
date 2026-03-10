@@ -30,9 +30,9 @@ services:
         "--poll-interval",
         "${GATEWAY_POLL_INTERVAL}",
         "--client-max-age",
-        "${GATEWAY_CLIENT_MAX_AGE}",
+        "${GATEWAY_CLIENT_MAX_AGE:-0}",
         "--enforce-interval",
-        "${GATEWAY_ENFORCE_INTERVAL}"
+        "${GATEWAY_ENFORCE_INTERVAL:-5}"
       ]
     environment:
       DB_PATH: /data/users.db
