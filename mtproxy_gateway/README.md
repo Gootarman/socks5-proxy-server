@@ -58,6 +58,12 @@ docker compose up -d --build
 
 7. Создавайте пользователей в UI — у каждого будет свой `port` и готовая `tg://proxy` ссылка.
 
+8. Создайте файл БД в корне проекта (рядом с `docker-compose.yml`), чтобы bind-mount был файловым:
+
+```bash
+touch users.db
+```
+
 ## Переменные `.env`
 
 - `PUBLIC_HOST` — внешний IP/домен сервера для `tg://proxy` ссылок.
@@ -103,7 +109,6 @@ docker compose logs -f admin
 
 ```bash
 docker compose down
-docker compose down -v
 ```
 
 

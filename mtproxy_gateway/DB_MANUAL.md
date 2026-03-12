@@ -8,11 +8,11 @@
 
 ## 1) Где лежит БД
 
-В docker-compose БД монтируется как volume и в контейнерах доступна по пути:
+В docker-compose БД монтируется как bind-mount файла и в контейнерах доступна по пути:
 
-- `/data/users.db`
+- `/app/users.db`
 
-Локально (без docker) путь обычно:
+Локально (в проекте `mtproxy_gateway`) файл лежит по пути:
 
 - `mtproxy_gateway/users.db`
 
@@ -24,7 +24,7 @@
 
 ```bash
 cd mtproxy_gateway
-docker compose exec admin sh -lc 'cp /data/users.db /data/users.db.bak'
+docker compose exec admin sh -lc 'cp /app/users.db /app/users.db.bak'
 ```
 
 ### Локально
@@ -40,7 +40,7 @@ cp mtproxy_gateway/users.db mtproxy_gateway/users.db.bak
 ### Через контейнер
 
 ```bash
-docker compose exec admin sh -lc 'sqlite3 /data/users.db'
+docker compose exec admin sh -lc 'sqlite3 /app/users.db'
 ```
 
 ### Локально
@@ -219,11 +219,11 @@ SELECT * FROM reserved_ports WHERE port = 11050;
 Список пользователей из контейнера:
 
 ```bash
-docker compose exec admin sh -lc "sqlite3 /data/users.db 'SELECT id,username,listen_port,is_active FROM users ORDER BY id DESC;'"
+docker compose exec admin sh -lc "sqlite3 /app/users.db 'SELECT id,username,listen_port,is_active FROM users ORDER BY id DESC;'"
 ```
 
 Деактивировать пользователя и перезапустить gateway-сигнал:
 
 ```bash
-docker compose exec admin sh -lc "sqlite3 /data/users.db \"UPDATE users SET is_active=0 WHERE username='manual_user'; UPDATE gateway_control SET restart_token=restart_token+1, updated_at=CURRENT_TIMESTAMP WHERE id=1;\""
+docker compose exec admin sh -lc "sqlite3 /app/users.db \"UPDATE users SET is_active=0 WHERE username='manual_user'; UPDATE gateway_control SET restart_token=restart_token+1, updated_at=CURRENT_TIMESTAMP WHERE id=1;\""
 ```

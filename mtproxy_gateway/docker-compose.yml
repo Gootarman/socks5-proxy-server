@@ -35,9 +35,9 @@ services:
         "${GATEWAY_ENFORCE_INTERVAL:-5}"
       ]
     environment:
-      DB_PATH: /data/users.db
+      DB_PATH: /app/users.db
     volumes:
-      - gateway_data:/data
+      - ./users.db:/app/users.db
     ports:
       - "${PORT_RANGE_START}-${PORT_RANGE_END}:${PORT_RANGE_START}-${PORT_RANGE_END}"
     depends_on:
@@ -48,19 +48,17 @@ services:
     build: .
     command: ["python", "admin_panel.py"]
     environment:
-      DB_PATH: /data/users.db
+      DB_PATH: /app/users.db
       PUBLIC_HOST: ${PUBLIC_HOST}
       MTG_SECRET: ${MTG_SECRET}
       PORT_RANGE_START: ${PORT_RANGE_START}
       PORT_RANGE_END: ${PORT_RANGE_END}
       ADMIN_PORT: 8000
     volumes:
-      - gateway_data:/data
+      - ./users.db:/app/users.db
     ports:
       - "${ADMIN_PORT}:8000"
     depends_on:
       - gateway
     restart: unless-stopped
 
-volumes:
-  gateway_data:
