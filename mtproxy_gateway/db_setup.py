@@ -6,7 +6,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path(os.getenv("DB_PATH", Path(__file__).resolve().parent / "users.db"))
+DEFAULT_DB_PATH = Path(__file__).resolve().parent / "users.db"
 
 
 USERS_SCHEMA = """
@@ -46,8 +46,22 @@ CREATE TABLE IF NOT EXISTS gateway_control (
 """
 
 
-def get_connection(db_path: Path = DB_PATH) -> sqlite3.Connection:
-    connection = sqlite3.connect(db_path)
+def resolve_db_path(db_path: Path | None = None) -> Path:
+    if db_path is None:
+        db_path = Path(os.getenv("DB_PATH", DEFAULT_DB_PATH))
+    else:
+        db_path = Path(db_path)
+
+    if db_path.exists() and db_path.is_dir():
+        db_path = db_path / "users.db"
+
+    return db_path
+
+
+def get_connection(db_path: Path | None = None) -> sqlite3.Connection:
+    resolved_path = resolve_db_path(db_path)
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(resolved_path)
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -176,7 +190,6 @@ def migrate_schema(connection: sqlite3.Connection) -> None:
 
 
 def init_db() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_connection() as connection:
         connection.execute(USERS_SCHEMA)
         migrate_schema(connection)
@@ -185,4 +198,4 @@ def init_db() -> None:
 
 if __name__ == "__main__":
     init_db()
-    print(f"Database initialized: {DB_PATH}")
+    print(f"Database initialized: {resolve_db_path()}")
